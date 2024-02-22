@@ -224,6 +224,16 @@ configure_history_settings() {
     echo "历史记录设置已更新。请退出并重新登录，或者运行 'source ~/.bashrc' 以应用更改。"
 }
 
+set_timezone_to_gmt8() {
+    echo "正在将时区设置为GMT+8..."
+
+    # 设置时区
+    sudo timedatectl set-timezone Asia/Shanghai  # 中国的北京时间为 GMT+8
+
+    # 显示当前时区确认更改
+    current_timezone=$(timedatectl | grep 'Time zone' | awk '{print $3}')
+    echo "当前时区已设置为: $current_timezone"
+}
 
 # 主菜单循环
 while true; do
@@ -236,6 +246,7 @@ while true; do
     echo "6) 安装 VNC 服务器"
     echo "7) 安装 Chrome 浏览器"
     echo "8) 配置历史记录设置"
+    echo "9) 将时区设置为北京时间"
     echo "q) 退出"
     read -p "请输入选项: " choice
 
@@ -264,6 +275,7 @@ while true; do
             6) install_vnc_server ;;
             7) install_chrome ;;
             8) configure_history_settings ;;
+            9) set_timezone_to_gmt8 ;;
             *) echo "无效选项: $i" ;;
         esac
     done
