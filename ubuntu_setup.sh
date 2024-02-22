@@ -205,10 +205,25 @@ EOF
 
 configure_history_settings() {
     echo "正在配置历史记录设置..."
-    export HISTSIZE=10000
-    export HISTTIMEFORMAT="%F %T $(whoami) "
-    echo "历史记录设置已更新。"
+
+    # 检查~/.bashrc中是否已经设置了HISTSIZE和HISTTIMEFORMAT
+    if ! grep -q 'export HISTSIZE=10000' ~/.bashrc; then
+        echo 'export HISTSIZE=10000' >> ~/.bashrc
+        echo "已添加HISTSIZE到~/.bashrc。"
+    else
+        echo "HISTSIZE已经设置在~/.bashrc中。"
+    fi
+
+    if ! grep -q 'export HISTTIMEFORMAT="%F %T $(whoami) "' ~/.bashrc; then
+        echo 'export HISTTIMEFORMAT="%F %T $(whoami) "' >> ~/.bashrc
+        echo "已添加HISTTIMEFORMAT到~/.bashrc。"
+    else
+        echo "HISTTIMEFORMAT已经设置在~/.bashrc中。"
+    fi
+
+    echo "历史记录设置已更新。请退出并重新登录，或者运行 'source ~/.bashrc' 以应用更改。"
 }
+
 
 # 主菜单循环
 while true; do
