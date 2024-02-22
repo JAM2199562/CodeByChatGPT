@@ -203,10 +203,16 @@ EOF
     echo "VNC 服务器安装和配置完成。你可以运行 '/home/$VNC_USER/vnc.sh' 来启动 VNC 服务器。"
 }
 
+configure_history_settings() {
+    echo "正在配置历史记录设置..."
+    export HISTSIZE=10000
+    export HISTTIMEFORMAT="%F %T $(whoami) "
+    echo "历史记录设置已更新。"
+}
 
 # 主菜单循环
 while true; do
-    echo "选择要执行的操作 (可用逗号分隔多个选项，或输入范围如1-5):"
+    echo "选择要执行的操作 (可用逗号分隔多个选项，或输入范围如1-8):"
     echo "1) 安装常用软件"
     echo "2) 安装 Go"
     echo "3) 安装 Node.js 和 Yarn"
@@ -214,6 +220,7 @@ while true; do
     echo "5) 安装 Gost"
     echo "6) 安装 VNC 服务器"
     echo "7) 安装 Chrome 浏览器"
+    echo "8) 配置历史记录设置"
     echo "q) 退出"
     read -p "请输入选项: " choice
 
@@ -241,6 +248,7 @@ while true; do
             5) install_gost ;;
             6) install_vnc_server ;;
             7) install_chrome ;;
+            8) configure_history_settings ;;
             *) echo "无效选项: $i" ;;
         esac
     done
