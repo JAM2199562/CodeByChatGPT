@@ -15,7 +15,7 @@ read -p "您要设定的vnc密码: " VNC_PASSWD
 
 # 功能函数
 install_common_software() {
-    apt install -y curl vim wget nload mlocate net-tools screen git autoconf dnsutils
+    apt install -y curl vim wget nload mlocate net-tools screen git autoconf dnsutils autoconf libtool automake build-essential
 }
 
 install_go() {
