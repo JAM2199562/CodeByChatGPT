@@ -10,9 +10,6 @@ fi
 read -p "您是否在中国大陆？(y/n): " in_china
 in_china=${in_china,,}  # 转换为小写
 
-# 询问用户要设置的vnc密码
-read -p "您要设定的vnc密码: " VNC_PASSWD
-
 # 功能函数
 install_common_software() {
     apt install -y curl vim wget nload mlocate net-tools screen git autoconf dnsutils autoconf libtool automake build-essential
@@ -128,6 +125,9 @@ install_vnc_server() {
     # 指定 VNC 用户的用户名
     VNC_USER="vnc"
 
+    # 询问用户要设置的vnc密码
+    read -p "您要设定的vnc密码: " VNC_PASSWD
+
     # 创建 VNC 用户
     echo "创建 VNC 用户: $VNC_USER"
     sudo adduser --gecos "" $VNC_USER --disabled-password
@@ -235,6 +235,25 @@ set_timezone_to_gmt8() {
     echo "当前时区已设置为: $current_timezone"
 }
 
+disable_and_remove_snapd() {
+    echo "正在禁用 snapd 服务..."
+    systemctl stop snapd && systemctl disable snapd
+
+    echo "正在遮蔽 snapd 服务..."
+    systemctl mask snapd
+
+    echo "正在删除 snapd 包..."
+    apt-get purge -y snapd gnome-software-plugin-snap
+
+    echo "正在删除残留文件..."
+    rm -rf ~/snap/
+    rm -rf /var/cache/snapd/
+    rm -rf /var/lib/snapd/
+    rm -rf /var/snap/
+
+    echo "已成功禁用并移除 snapd 以及其残留文件。"
+}
+
 # 主菜单循环
 while true; do
     echo "选择要执行的操作 (可用逗号分隔多个选项，或输入范围如1-8):"
@@ -247,6 +266,7 @@ while true; do
     echo "7) 安装 Chrome 浏览器"
     echo "8) 配置历史记录设置"
     echo "9) 将时区设置为北京时间"
+    echo "10) 禁用并移除 Snapd"
     echo "q) 退出"
     read -p "请输入选项: " choice
 
@@ -276,6 +296,7 @@ while true; do
             7) install_chrome ;;
             8) configure_history_settings ;;
             9) set_timezone_to_gmt8 ;;
+            10) disable_and_remove_snapd ;;
             *) echo "无效选项: $i" ;;
         esac
     done
