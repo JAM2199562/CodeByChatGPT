@@ -12,7 +12,7 @@ in_china=${in_china,,}  # 转换为小写
 
 # 功能函数
 install_common_software() {
-    apt install -y curl vim wget nload mlocate net-tools screen git autoconf dnsutils autoconf libtool automake build-essential libgmp-dev
+    apt install -y curl vim wget nload mlocate net-tools screen git autoconf dnsutils autoconf libtool automake build-essential libgmp-dev nload sysstat
 }
 
 install_go() {
