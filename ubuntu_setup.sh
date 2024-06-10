@@ -272,6 +272,23 @@ disable_and_remove_snapd() {
 
     echo "已成功禁用并移除 snapd 以及其残留文件。"
 }
+disable_automatic_updates() {
+    CONFIG_FILE="/etc/apt/apt.conf.d/10periodic"
+
+    # 检查文件是否存在，如果不存在则创建
+    if [ ! -f "$CONFIG_FILE" ]; then
+        sudo touch "$CONFIG_FILE"
+    fi
+
+    # 添加或更新 APT::Periodic::Unattended-Upgrade 设置
+    if grep -q "^APT::Periodic::Unattended-Upgrade" "$CONFIG_FILE"; then
+        sudo sed -i 's/^APT::Periodic::Unattended-Upgrade.*/APT::Periodic::Unattended-Upgrade "0";/' "$CONFIG_FILE"
+    else
+        echo 'APT::Periodic::Unattended-Upgrade "0";' | sudo tee -a "$CONFIG_FILE"
+    fi
+
+    echo "Automatic updates have been disabled."
+}
 
 # 主菜单循环
 while true; do
@@ -287,6 +304,7 @@ while true; do
     echo "9) 配置历史记录设置"
     echo "10) 将时区设置为北京时间"
     echo "11) 禁用并移除 Snapd"
+    echo "12) 禁止Ubuntu自动更新任何包"
     echo "q) 退出"
     read -p "请输入选项: " choice
 
@@ -318,6 +336,7 @@ while true; do
             9) configure_history_settings ;;
             10) set_timezone_to_gmt8 ;;
             11) disable_and_remove_snapd ;;
+            12) disable_automatic_updates ;;
             *) echo "无效选项: $i" ;;
         esac
     done
