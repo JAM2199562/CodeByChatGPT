@@ -17,7 +17,7 @@ install_common_software() {
 
 install_go() {
     # Go 版本号
-    GO_VERSION="1.21.11"
+    GO_VERSION="1.21.6"
 
     # 下载 Go 二进制文件
     curl -LO "https://golang.google.cn/dl/go${GO_VERSION}.linux-amd64.tar.gz"
@@ -26,9 +26,12 @@ install_go() {
     sudo tar -C /usr/local -xzf "go${GO_VERSION}.linux-amd64.tar.gz"
 
     # 添加到系统环境变量中
-    if ! grep -q "/usr/local/go/bin" /etc/environment; then
-        echo "PATH=\$PATH:/usr/local/go/bin" | sudo tee -a /etc/environment
+    if ! grep -q "/usr/local/go/bin" /etc/profile; then
+        echo "export PATH=\$PATH:/usr/local/go/bin" | sudo tee -a /etc/profile >/dev/null
     fi
+
+    # 确保立即生效
+    export PATH=$PATH:/usr/local/go/bin
 
     # 清理下载的 tar.gz 文件
     rm "go${GO_VERSION}.linux-amd64.tar.gz"
