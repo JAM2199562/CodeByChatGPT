@@ -16,11 +16,14 @@ install_common_software() {
 }
 
 install_go() {
+    # Go 版本号
+    GO_VERSION="1.21.11"
+
     # 下载 Go 二进制文件
-    curl -LO https://golang.google.cn/dl/go1.21.6.linux-amd64.tar.gz
+    curl -LO "https://golang.google.cn/dl/go${GO_VERSION}.linux-amd64.tar.gz"
 
     # 解压到 /usr/local 目录
-    sudo tar -C /usr/local -xzf go1.21.6.linux-amd64.tar.gz
+    sudo tar -C /usr/local -xzf "go${GO_VERSION}.linux-amd64.tar.gz"
 
     # 添加到系统环境变量中
     if ! grep -q "/usr/local/go/bin" /etc/environment; then
@@ -28,9 +31,9 @@ install_go() {
     fi
 
     # 清理下载的 tar.gz 文件
-    rm go1.21.6.linux-amd64.tar.gz
+    rm "go${GO_VERSION}.linux-amd64.tar.gz"
 
-    echo "Go has been installed. Please log out and log back in to ensure Go is available in your environment."
+    echo "Go ${GO_VERSION} has been installed. Please log out and log back in to ensure Go is available in your environment."
 }
 
 install_xray() {
