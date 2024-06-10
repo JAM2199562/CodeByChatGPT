@@ -16,10 +16,25 @@ install_common_software() {
 }
 
 install_go() {
+    # 下载 Go 二进制文件
     curl -LO https://golang.google.cn/dl/go1.21.6.linux-amd64.tar.gz
-    tar -C /usr/local -xzf go1.21.6.linux-amd64.tar.gz
+
+    # 解压到 /usr/local 目录
+    sudo tar -C /usr/local -xzf go1.21.6.linux-amd64.tar.gz
+
+    # 确保 go/bin 路径被永久添加到 PATH 中
+    if ! grep -q "/usr/local/go/bin" ~/.profile; then
+        echo "export PATH=\$PATH:/usr/local/go/bin" >> ~/.profile
+    fi
+
+    # 确保改变立即生效
     export PATH=$PATH:/usr/local/go/bin
     source ~/.profile
+
+    # 清理下载的 tar.gz 文件
+    rm go1.21.6.linux-amd64.tar.gz
+
+    echo "Go has been installed. Please log out and log back in to ensure Go is available in your environment."
 }
 
 install_xray() {
@@ -108,6 +123,10 @@ EOF
     sudo systemctl enable gost.service
 
     echo "GOST 服务配置完成，可以通过 'sudo systemctl start gost' 命令启动服务。"
+}
+
+install_rust() {
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 }
 
 install_node_and_yarn() {
@@ -256,17 +275,18 @@ disable_and_remove_snapd() {
 
 # 主菜单循环
 while true; do
-    echo "选择要执行的操作 (可用逗号分隔多个选项，或输入范围如1-8):"
+    echo "选择要执行的操作 (可用逗号分隔多个选项，或输入范围如1-9):"
     echo "1) 安装常用软件"
     echo "2) 安装 Go"
     echo "3) 安装 Node.js 和 Yarn"
-    echo "4) 安装 Xray"
-    echo "5) 安装 Gost"
-    echo "6) 安装 VNC 服务器"
-    echo "7) 安装 Chrome 浏览器"
-    echo "8) 配置历史记录设置"
-    echo "9) 将时区设置为北京时间"
-    echo "10) 禁用并移除 Snapd"
+    echo "4) 安装 Rust"
+    echo "5) 安装 Xray"
+    echo "6) 安装 Gost"
+    echo "7) 安装 VNC 服务器"
+    echo "8) 安装 Chrome 浏览器"
+    echo "9) 配置历史记录设置"
+    echo "10) 将时区设置为北京时间"
+    echo "11) 禁用并移除 Snapd"
     echo "q) 退出"
     read -p "请输入选项: " choice
 
@@ -290,14 +310,16 @@ while true; do
             1) install_common_software ;;
             2) install_go ;;
             3) install_node_and_yarn ;;
-            4) install_xray ;;
-            5) install_gost ;;
-            6) install_vnc_server ;;
-            7) install_chrome ;;
-            8) configure_history_settings ;;
-            9) set_timezone_to_gmt8 ;;
-            10) disable_and_remove_snapd ;;
+            4) install_rust ;;
+            5) install_xray ;;
+            6) install_gost ;;
+            7) install_vnc_server ;;
+            8) install_chrome ;;
+            9) configure_history_settings ;;
+            10) set_timezone_to_gmt8 ;;
+            11) disable_and_remove_snapd ;;
             *) echo "无效选项: $i" ;;
         esac
     done
 done
+
