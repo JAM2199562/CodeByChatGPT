@@ -25,6 +25,9 @@ install_go() {
     # 解压到 /usr/local 目录
     sudo tar -C /usr/local -xzf "go${GO_VERSION}.linux-amd64.tar.gz"
 
+    # 备份 /etc/profile 文件
+    sudo cp /etc/profile /etc/profile.bak
+
     # 添加到系统环境变量中
     if ! grep -q "/usr/local/go/bin" /etc/profile; then
         echo "export PATH=\$PATH:/usr/local/go/bin" | sudo tee -a /etc/profile >/dev/null
