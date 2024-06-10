@@ -23,13 +23,13 @@ install_go() {
     sudo tar -C /usr/local -xzf go1.21.6.linux-amd64.tar.gz
 
     # 确保 go/bin 路径被永久添加到 PATH 中
-    if ! grep -q "/usr/local/go/bin" ~/.profile; then
-        echo "export PATH=\$PATH:/usr/local/go/bin" >> ~/.profile
+    if ! grep -q "/usr/local/go/bin" ~/.bashrc; then
+        echo "export PATH=\$PATH:/usr/local/go/bin" >> ~/.bashrc
     fi
 
     # 确保改变立即生效
     export PATH=$PATH:/usr/local/go/bin
-    source ~/.profile
+    source ~/.bashrc
 
     # 清理下载的 tar.gz 文件
     rm go1.21.6.linux-amd64.tar.gz
