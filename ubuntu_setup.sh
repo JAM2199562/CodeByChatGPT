@@ -327,7 +327,7 @@ while true; do
     echo "10) 安装 Chrome 浏览器"
     echo "11) 禁用并移除 Snapd"
     echo "12) 禁止Ubuntu自动更新"
-    echo "13) 禁止Ubuntu安装内核"
+    echo "13) 禁止Ubuntu更新内核"
     echo "q) 退出"
     read -p "请输入选项: " choice
 
