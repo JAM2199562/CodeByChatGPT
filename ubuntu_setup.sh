@@ -295,6 +295,23 @@ disable_automatic_updates() {
     echo "Automatic updates have been disabled."
 }
 
+disable_kernel_package_installation() {
+    cat <<EOF | sudo tee /etc/apt/preferences.d/disable-kernel-packages >/dev/null
+Package: linux-image*
+Pin: release *
+Pin-Priority: -1
+
+Package: linux-headers*
+Pin: release *
+Pin-Priority: -1
+
+Package: linux-modules*
+Pin: release *
+Pin-Priority: -1
+EOF
+    echo "Kernel packages installation has been disabled."
+}
+
 # 主菜单循环
 while true; do
     echo "选择要执行的操作 (可用逗号分隔多个选项，或输入范围如1-9):"
@@ -309,7 +326,8 @@ while true; do
     echo "9) 配置历史记录设置"
     echo "10) 将时区设置为北京时间"
     echo "11) 禁用并移除 Snapd"
-    echo "12) 禁止Ubuntu自动更新任何包"
+    echo "12) 禁止Ubuntu自动更新"
+    echo "13) 禁止Ubuntu安装内核"
     echo "q) 退出"
     read -p "请输入选项: " choice
 
@@ -342,6 +360,7 @@ while true; do
             10) set_timezone_to_gmt8 ;;
             11) disable_and_remove_snapd ;;
             12) disable_automatic_updates ;;
+            13) disable_kernel_package_installation ;;
             *) echo "无效选项: $i" ;;
         esac
     done
