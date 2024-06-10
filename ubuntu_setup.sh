@@ -314,17 +314,17 @@ EOF
 
 # 主菜单循环
 while true; do
-    echo "选择要执行的操作 (可用逗号分隔多个选项，或输入范围如1-9):"
-    echo "1) 安装常用软件"
-    echo "2) 安装 Go"
-    echo "3) 安装 Node.js 和 Yarn"
-    echo "4) 安装 Rust"
-    echo "5) 安装 Xray"
-    echo "6) 安装 Gost"
-    echo "7) 安装 VNC 服务器"
-    echo "8) 安装 Chrome 浏览器"
-    echo "9) 配置历史记录设置"
-    echo "10) 将时区设置为北京时间"
+    echo "选择要执行的操作 (可用逗号分隔多个选项，或输入范围如1-13):"
+    echo "1) 配置历史记录设置"
+    echo "2) 将时区设置为北京时间"
+    echo "3) 安装常用软件"
+    echo "4) 安装 Go"
+    echo "5) 安装 Node.js 和 Yarn"
+    echo "6) 安装 Rust"
+    echo "7) 安装 Xray"
+    echo "8) 安装 Gost"
+    echo "9) 安装 VNC 服务器"
+    echo "10) 安装 Chrome 浏览器"
     echo "11) 禁用并移除 Snapd"
     echo "12) 禁止Ubuntu自动更新"
     echo "13) 禁止Ubuntu安装内核"
@@ -348,16 +348,16 @@ while true; do
     IFS=',' read -ra ADDR <<< "$choice"
     for i in "${ADDR[@]}"; do
         case $i in
-            1) install_common_software ;;
-            2) install_go ;;
-            3) install_node_and_yarn ;;
-            4) install_rust ;;
-            5) install_xray ;;
-            6) install_gost ;;
-            7) install_vnc_server ;;
-            8) install_chrome ;;
-            9) configure_history_settings ;;
-            10) set_timezone_to_gmt8 ;;
+            1) configure_history_settings ;;
+            2) set_timezone_to_gmt8 ;;
+            3) install_common_software ;;
+            4) install_go ;;
+            5) install_node_and_yarn ;;
+            6) install_rust ;;
+            7) install_xray ;;
+            8) install_gost ;;
+            9) install_vnc_server ;;
+            10) install_chrome ;;
             11) disable_and_remove_snapd ;;
             12) disable_automatic_updates ;;
             13) disable_kernel_package_installation ;;
@@ -365,4 +365,5 @@ while true; do
         esac
     done
 done
+
 
