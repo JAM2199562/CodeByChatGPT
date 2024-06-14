@@ -312,6 +312,52 @@ EOF
     echo "Kernel packages installation has been disabled."
 }
 
+install_docker() {
+    # 检查是否已经安装 Docker
+    if command -v docker &>/dev/null; then
+        echo "Docker 已经安装，版本为 $(docker --version)"
+        read -p "是否卸载现有版本并安装新版本？ (y/n): " answer
+        case "$answer" in
+            [Yy]* )
+                sudo apt-get remove -y docker-ce docker-ce-cli containerd.io
+                echo "已卸载现有版本";;
+            * ) echo "已取消安装"; return;;
+        esac
+    fi
+
+    # 备份并覆盖 Docker 官方 GPG 密钥
+    if [ -e "/usr/share/keyrings/docker-archive-keyring.gpg" ]; then
+        sudo mv /usr/share/keyrings/docker-archive-keyring.gpg /usr/share/keyrings/docker-archive-keyring.gpg.bak
+        echo "已备份原有密钥"
+    fi
+
+    # 更新 apt 软件包索引并安装依赖项
+    sudo apt-get update
+    sudo apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release
+
+    # 添加 Docker 官方 GPG 密钥
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+
+    # 添加 Docker 软件仓库
+    echo \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu \
+      $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+    # 安装 Docker Engine
+    sudo apt-get update
+    sudo apt-get install -y docker-ce docker-ce-cli containerd.io
+
+    # 验证安装
+    echo "Docker 已安装，版本为 $(docker --version)"
+
+    # 添加当前用户到 Docker 用户组
+    sudo usermod -aG docker $USER
+    echo "已将当前用户加入 Docker 用户组"
+
+    # 重新登录或重启
+    echo "请重新登录或重启系统，以便使用户组更改生效"
+}
+
 # 主菜单循环
 while true; do
     echo "选择要执行的操作 (可用逗号分隔多个选项，或输入范围如1-13):"
@@ -320,14 +366,15 @@ while true; do
     echo "3) 安装常用软件"
     echo "4) 安装 Go"
     echo "5) 安装 Node.js 和 Yarn"
-    echo "6) 安装 Rust"
-    echo "7) 安装 Xray"
-    echo "8) 安装 Gost"
-    echo "9) 安装 VNC 服务器"
-    echo "10) 安装 Chrome 浏览器"
-    echo "11) 禁用并移除 Snapd"
-    echo "12) 禁止Ubuntu自动更新"
-    echo "13) 禁止Ubuntu更新内核"
+    echo "6) 安装 Docker"
+    echo "7) 安装 Rust"
+    echo "8) 安装 Xray"
+    echo "9) 安装 Gost"
+    echo "10) 安装 VNC 服务器"
+    echo "11) 安装 Chrome 浏览器"
+    echo "12) 禁用并移除 Snapd"
+    echo "13) 禁止 Ubuntu 自动更新"
+    echo "14) 禁止 Ubuntu 更新内核"
     echo "q) 退出"
     read -p "请输入选项: " choice
 
@@ -336,34 +383,49 @@ while true; do
         exit 0
     fi
 
-    # 检查输入是否为范围
+    # 检查是否为范围
     if [[ $choice =~ ^[0-9]+-[0-9]+$ ]]; then
         IFS='-' read -ra RANGE <<< "$choice"
         start=${RANGE[0]}
         end=${RANGE[1]}
-        # 生成范围内的序列
-        choice=$(seq $start $end | tr '\n' ',')
+        # 检查范围是否有效
+        if (( start <= end )); then
+            choice=$(seq $start $end)
+        else
+            echo "范围输入无效，请重新输入。"
+            continue
+        fi
     fi
 
+    # 检查选择是否有效
+    valid_choice=true
     IFS=',' read -ra ADDR <<< "$choice"
     for i in "${ADDR[@]}"; do
-        case $i in
-            1) configure_history_settings ;;
-            2) set_timezone_to_gmt8 ;;
-            3) install_common_software ;;
-            4) install_go ;;
-            5) install_node_and_yarn ;;
-            6) install_rust ;;
-            7) install_xray ;;
-            8) install_gost ;;
-            9) install_vnc_server ;;
-            10) install_chrome ;;
-            11) disable_and_remove_snapd ;;
-            12) disable_automatic_updates ;;
-            13) disable_kernel_package_installation ;;
-            *) echo "无效选项: $i" ;;
-        esac
+        if ! [[ $i =~ ^[0-9]+$ ]] || (( i < 1 || i > 14 )); then
+            echo "选项 $i 无效，请重新输入。"
+            valid_choice=false
+            break
+        fi
     done
+
+    if [[ $valid_choice = true ]]; then
+        for i in "${ADDR[@]}"; do
+            case $i in
+                1) configure_history_settings ;;
+                2) set_timezone_to_gmt8 ;;
+                3) install_common_software ;;
+                4) install_go ;;
+                5) install_node_and_yarn ;;
+                6) install_docker ;;
+                7) install_rust ;;
+                8) install_xray ;;
+                9) install_gost ;;
+                10) install_vnc_server ;;
+                11) install_chrome ;;
+                12) disable_and_remove_snapd ;;
+                13) disable_automatic_updates ;;
+                14) disable_kernel_package_installation ;;
+            esac
+        done
+    fi
 done
-
-
