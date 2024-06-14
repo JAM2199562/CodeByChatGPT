@@ -16,6 +16,14 @@ install_common_software() {
 }
 
 install_go() {
+
+    # 检查是否已经安装 Go
+    if command -v go >/dev/null 2>&1; then
+        INSTALLED_GO_VERSION=$(go version | awk '{print $3}')
+        echo "Go 已安装，版本为 ${INSTALLED_GO_VERSION}。跳过安装。"
+        return
+    fi
+
     # Go 版本号
     GO_VERSION="1.21.6"
 
