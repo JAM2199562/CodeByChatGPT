@@ -250,19 +250,22 @@ EOF
 configure_history_settings() {
     echo "正在配置历史记录设置..."
 
-    # 检查~/.bashrc中是否已经设置了HISTSIZE和HISTTIMEFORMAT
-    if ! grep -q 'export HISTSIZE=10000' ~/.bashrc; then
-        echo 'export HISTSIZE=10000' >> ~/.bashrc
-        echo "已添加HISTSIZE到~/.bashrc。"
+    # 检查 ~/.bashrc 中是否已经设置了 HISTSIZE
+    if grep -q 'HISTSIZE=' ~/.bashrc; then
+        sed -i 's/^HISTSIZE=.*/export HISTSIZE=10000/' ~/.bashrc
+        echo "已更新 HISTSIZE 设置在 ~/.bashrc 中。"
     else
-        echo "HISTSIZE已经设置在~/.bashrc中。"
+        echo 'export HISTSIZE=10000' >> ~/.bashrc
+        echo "已添加 HISTSIZE 设置到 ~/.bashrc 中。"
     fi
 
-    if ! grep -q 'export HISTTIMEFORMAT="[%F %T | $(whoami) ]  "' ~/.bashrc; then
-        echo 'export HISTTIMEFORMAT="%F %T $(whoami) "' >> ~/.bashrc
-        echo "已添加HISTTIMEFORMAT到~/.bashrc。"
+    # 检查 ~/.bashrc 中是否已经设置了 HISTTIMEFORMAT
+    if grep -q 'HISTTIMEFORMAT=' ~/.bashrc; then
+        sed -i 's/^HISTTIMEFORMAT=.*/export HISTTIMEFORMAT="%F %T $(whoami)"/' ~/.bashrc
+        echo "已更新 HISTTIMEFORMAT 设置在 ~/.bashrc 中。"
     else
-        echo "HISTTIMEFORMAT已经设置在~/.bashrc中。"
+        echo 'export HISTTIMEFORMAT="%F %T $(whoami)"' >> ~/.bashrc
+        echo "已添加 HISTTIMEFORMAT 设置到 ~/.bashrc 中。"
     fi
 
     echo "历史记录设置已更新。请退出并重新登录，或者运行 'source ~/.bashrc' 以应用更改。"
