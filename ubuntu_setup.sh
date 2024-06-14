@@ -359,7 +359,36 @@ install_docker() {
 }
 
 install_chsrc() {
-curl -L https://gitee.com/RubyMetric/chsrc/releases/download/pre/chsrc-x64-linux -o /usr/local/bin/chsrc; chmod +x /usr/local/bin/chsrc
+    # 下载最新版本
+    curl -L https://gitee.com/RubyMetric/chsrc/releases/download/pre/chsrc-x64-linux -o /tmp/chsrc
+    chmod +x /tmp/chsrc
+    # 检查本地版本是否存在
+    if command -v chsrc &>/dev/null; then
+        local_version=$(chsrc --version | awk '{print substr($0, 8)}')
+        new_version=$(TMPDIR=/tmp /tmp/chsrc --version | awk '{print substr($0, 8)}')
+
+        # 对比本地版本和新版本是否一致
+        if [[ $local_version != $new_version ]]; then
+            echo "当前安装的 chsrc 版本为: $local_version"
+            echo "新版本的 chsrc 版本为: $new_version"
+
+            # 询问用户是否替换
+            read -p "是否替换当前版本？(y/n): " replace_choice
+            if [[ $replace_choice == "y" ]]; then
+                mv /tmp/chsrc /usr/local/bin/chsrc
+                echo "chsrc 更新完成."
+            else
+                rm /tmp/chsrc
+                echo "已取消更新."
+            fi
+        else
+            echo "当前安装的 chsrc 版本已经是最新版本：$local_version"
+            rm /tmp/chsrc
+        fi
+    else
+        mv /tmp/chsrc /usr/local/bin/chsrc
+        echo "chsrc 安装完成."
+    fi
 }
 
 # 主菜单循环
