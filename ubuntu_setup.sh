@@ -364,19 +364,19 @@ curl -L https://gitee.com/RubyMetric/chsrc/releases/download/pre/chsrc-x64-linux
 
 # 主菜单循环
 while true; do
-    echo "选择要执行的操作 (可用逗号分隔多个选项，或输入范围如1-14):"
+    echo "选择要执行的操作 (可用逗号分隔多个选项，或输入范围如1-15):"
     echo "1) 配置历史记录设置"
     echo "2) 将时区设置为北京时间"
     echo "3) 安装常用软件"
     echo "4) 安装 Go"
     echo "5) 安装 Node.js 和 Yarn"
-    echo "6) 安装 Docker"
-    echo "7) 安装 Rust"
-    echo "8) 安装 Xray"
-    echo "9) 安装 Gost"
-    echo "10) 安装 VNC 服务器"
-    echo "11) 安装 Chrome 浏览器"
-    echo "12) 安装 chsrc 命令行换源工具"
+    echo "6) 安装 chsrc 命令行换源工具"
+    echo "7) 安装 Docker"
+    echo "8) 安装 Rust"
+    echo "9) 安装 Xray"
+    echo "10) 安装 Gost"
+    echo "11) 安装 VNC 服务器"
+    echo "12) 安装 Chrome 浏览器"
     echo "13) 禁用并移除 Snapd"
     echo "14) 禁止 Ubuntu 自动更新"
     echo "15) 禁止 Ubuntu 更新内核"
@@ -410,17 +410,18 @@ while true; do
             3) install_common_software ;;
             4) install_go ;;
             5) install_node_and_yarn ;;
-            6) install_docker ;;
-            7) install_rust ;;
-            8) install_xray ;;
-            9) install_gost ;;
-            10) install_vnc_server ;;
-            11) install_chrome ;;
-            12) install_chsrc ;;
+            6) install_chsrc ;;
+            7) install_docker ;;
+            8) install_rust ;;
+            9) install_xray ;;
+            10) install_gost ;;
+            11) install_vnc_server ;;
+            12) install_chrome ;;
             13) disable_and_remove_snapd ;;
             14) disable_automatic_updates ;;
             15) disable_kernel_package_installation ;;
         esac
     done
 done
+
 
