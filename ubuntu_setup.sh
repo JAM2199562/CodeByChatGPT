@@ -143,14 +143,26 @@ install_rust() {
 }
 
 install_node_and_yarn() {
-    # 安装 Node.js
-    curl -fsSL https://deb.nodesource.com/setup_lts.x | bash -
-    apt-get install -y nodejs
+    # 检查是否已经安装 Node.js
+    if command -v node >/dev/null 2>&1; then
+        INSTALLED_NODE_VERSION=$(node -v)
+        echo "Node.js 已安装，版本为 ${INSTALLED_NODE_VERSION}。跳过安装。"
+    else
+        # 安装 Node.js
+        curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+        sudo apt-get install -y nodejs
+        echo "Node.js 安装完成。"
+    fi
 
-    # 安装 Yarn
-    # 方法 1: 使用 npm 安装 Yarn
-    npm install --global yarn
-    echo "Node.js 和 Yarn 安装完成。"
+    # 检查是否已经安装 Yarn
+    if command -v yarn >/dev/null 2>&1; then
+        INSTALLED_YARN_VERSION=$(yarn -v)
+        echo "Yarn 已安装，版本为 ${INSTALLED_YARN_VERSION}。跳过安装。"
+    else
+        # 安装 Yarn
+        npm install --global yarn
+        echo "Yarn 安装完成。"
+    fi
 }
 
 install_vnc_server() {
