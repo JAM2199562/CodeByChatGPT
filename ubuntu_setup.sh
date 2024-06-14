@@ -238,7 +238,7 @@ configure_history_settings() {
         echo "HISTSIZE已经设置在~/.bashrc中。"
     fi
 
-    if ! grep -q 'export HISTTIMEFORMAT="%F %T $(whoami) "' ~/.bashrc; then
+    if ! grep -q 'export HISTTIMEFORMAT="[%F %T | $(whoami) ]  "' ~/.bashrc; then
         echo 'export HISTTIMEFORMAT="%F %T $(whoami) "' >> ~/.bashrc
         echo "已添加HISTTIMEFORMAT到~/.bashrc。"
     else
