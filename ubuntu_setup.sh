@@ -417,6 +417,8 @@ while true; do
         exit 0
     fi
 
+    expanded_choices=()
+
     # 检查是否为范围
     if [[ $choice =~ ^[0-9]+-[0-9]+$ ]]; then
         IFS='-' read -ra RANGE <<< "$choice"
@@ -424,15 +426,21 @@ while true; do
         end=${RANGE[1]}
         # 检查范围是否有效
         if (( start <= end )); then
-            choice=$(seq $start $end)
+            for (( j=start; j<=end; j++ )); do
+                expanded_choices+=($j)
+            done
         else
             echo "范围输入无效，请重新输入。"
             continue
         fi
+    else
+        IFS=',' read -ra ADDR <<< "$choice"
+        for i in "${ADDR[@]}"; do
+            expanded_choices+=($i)
+        done
     fi
 
-    IFS=',' read -ra ADDR <<< "$choice"
-    for i in "${ADDR[@]}"; do
+    for i in "${expanded_choices[@]}"; do
         case $i in
             1) configure_history_settings ;;
             2) set_timezone_to_gmt8 ;;
@@ -449,6 +457,7 @@ while true; do
             13) disable_and_remove_snapd ;;
             14) disable_automatic_updates ;;
             15) disable_kernel_package_installation ;;
+            *) echo "无效的选项: $i" ;;
         esac
     done
 done
