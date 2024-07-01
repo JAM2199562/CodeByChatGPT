@@ -268,6 +268,15 @@ configure_history_settings() {
         echo "已添加 HISTTIMEFORMAT 设置到 ~/.bashrc 中。"
     fi
 
+    # 检查 ~/.bashrc 中是否已经设置了 PS1
+    if grep -q 'PS1=' ~/.bashrc; then
+        sed -i 's/^PS1=.*/export PS1="\\[\\e[37;40m\\][\\[\\e[35;40m\\]\\u\\[\\e[37;40m\\]@\\[\\e[32;40m\\]\\h \\[\\e[34;40m\\]\\w\\[\\e[0m\\]]\\$ "/' ~/.bashrc
+        echo "已更新 PS1 设置在 ~/.bashrc 中。"
+    else
+        echo 'export PS1="\[\e[37;40m\][\[\e[35;40m\]\u\[\e[37;40m\]@\[\e[32;40m\]\h \[\e[34;40m\]\w\[\e[0m\]]\\$ "' >> ~/.bashrc
+        echo "已添加 PS1 设置到 ~/.bashrc 中。"
+    fi
+
     echo "历史记录设置已更新。请退出并重新登录，或者运行 'source ~/.bashrc' 以应用更改。"
 }
 
@@ -417,7 +426,7 @@ install_chsrc() {
 # 主菜单循环
 while true; do
     echo "选择要执行的操作 (可用逗号分隔多个选项，或输入范围如1-15):"
-    echo "1) 配置历史记录设置"
+    echo "1) 配置历史格式和终端提示符样式"
     echo "2) 将时区设置为北京时间"
     echo "3) 安装常用软件"
     echo "4) 安装 Go"
