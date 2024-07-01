@@ -293,22 +293,30 @@ set_timezone_to_gmt8() {
 
 disable_and_remove_snapd() {
     echo "正在禁用 snapd 服务..."
-    systemctl stop snapd && systemctl disable snapd
 
-    echo "正在遮蔽 snapd 服务..."
-    systemctl mask snapd
+    systemctl stop snapd.service
+    systemctl disable snapd.service
+    systemctl disable snapd.socket
+    systemctl disable snapd.seeded.service
 
-    echo "正在删除 snapd 包..."
-    apt-get purge -y snapd gnome-software-plugin-snap
+    echo "正在收集所有 snap 应用..."
+    snap_packages=$(snap list | awk '{print $1}' | grep -v "Name" | tr '\n' ' ')
+
+    echo "正在删除 snap 应用..."
+    snap remove $snap_packages
 
     echo "正在删除残留文件..."
-    rm -rf ~/snap/
     rm -rf /var/cache/snapd/
-    rm -rf /var/lib/snapd/
-    rm -rf /var/snap/
+    
+    echo "正在卸载 snapd..."
+    apt autoremove --purge -y snapd
+    
+    echo "设置 snapd 包为 hold 状态，防止重新安装..."
+    apt-mark hold snapd
 
     echo "已成功禁用并移除 snapd 以及其残留文件。"
 }
+
 disable_automatic_updates() {
     CONFIG_FILE="/etc/apt/apt.conf.d/10periodic"
 
