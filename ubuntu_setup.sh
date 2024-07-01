@@ -261,7 +261,7 @@ configure_history_settings() {
 
     # 检查 ~/.bashrc 中是否已经设置了 HISTTIMEFORMAT
     if grep -q 'HISTTIMEFORMAT=' ~/.bashrc; then
-        sed -i 's/^HISTTIMEFORMAT=.*/export HISTTIMEFORMAT="%F %T $(whoami)"/' ~/.bashrc
+        sed -i 's/^HISTTIMEFORMAT=.*/export HISTTIMEFORMAT="[%F %T $(whoami)] "/' ~/.bashrc
         echo "已更新 HISTTIMEFORMAT 设置在 ~/.bashrc 中。"
     else
         echo 'export HISTTIMEFORMAT="%F %T $(whoami)"' >> ~/.bashrc
