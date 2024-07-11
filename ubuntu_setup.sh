@@ -414,6 +414,13 @@ install_chsrc() {
     fi
 }
 
+disable_ipv6() {
+    echo "net.ipv6.conf.all.disable_ipv6 = 1" | sudo tee -a /etc/sysctl.conf
+    echo "net.ipv6.conf.default.disable_ipv6 = 1" | sudo tee -a /etc/sysctl.conf
+    echo "net.ipv6.conf.lo.disable_ipv6 = 1" | sudo tee -a /etc/sysctl.conf
+    sudo sysctl -p
+}
+
 # 主菜单循环
 while true; do
     echo "选择要执行的操作 (可用逗号分隔多个选项，或输入范围如1-15):"
@@ -432,6 +439,7 @@ while true; do
     echo "13) 禁用并移除 Snapd"
     echo "14) 禁止 Ubuntu 自动更新"
     echo "15) 禁止 Ubuntu 更新内核"
+    echo "16) 禁用IPv6"
     echo "q) 退出"
     read -p "请输入选项: " choice
 
@@ -480,6 +488,7 @@ while true; do
             13) disable_and_remove_snapd ;;
             14) disable_automatic_updates ;;
             15) disable_kernel_package_installation ;;
+            16) disable_ipv6 ;;
             *) echo "无效的选项: $i" ;;
         esac
     done
