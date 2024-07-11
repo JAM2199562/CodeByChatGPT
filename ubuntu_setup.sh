@@ -261,11 +261,20 @@ configure_history_settings() {
 
     # 检查 ~/.bashrc 中是否已经设置了 HISTTIMEFORMAT
     if grep -q 'HISTTIMEFORMAT=' ~/.bashrc; then
-        sed -i 's/^HISTTIMEFORMAT=.*/export HISTTIMEFORMAT="%F %T $(whoami)"/' ~/.bashrc
+        sed -i 's/^HISTTIMEFORMAT=.*/export HISTTIMEFORMAT="[%F %T $(whoami)] "/' ~/.bashrc
         echo "已更新 HISTTIMEFORMAT 设置在 ~/.bashrc 中。"
     else
         echo 'export HISTTIMEFORMAT="%F %T $(whoami)"' >> ~/.bashrc
         echo "已添加 HISTTIMEFORMAT 设置到 ~/.bashrc 中。"
+    fi
+
+    # 检查 ~/.bashrc 中是否已经设置了 PS1
+    if grep -q 'PS1=' ~/.bashrc; then
+        sed -i 's/^PS1=.*/export PS1="\\[\\e[37;40m\\][\\[\\e[35;40m\\]\\u\\[\\e[37;40m\\]@\\[\\e[32;40m\\]\\h \\[\\e[34;40m\\]\\w\\[\\e[0m\\]]\\$ "/' ~/.bashrc
+        echo "已更新 PS1 设置在 ~/.bashrc 中。"
+    else
+        echo 'export PS1="\[\e[37;40m\][\[\e[35;40m\]\u\[\e[37;40m\]@\[\e[32;40m\]\h \[\e[34;40m\]\w\[\e[0m\]]\\$ "' >> ~/.bashrc
+        echo "已添加 PS1 设置到 ~/.bashrc 中。"
     fi
 
     echo "历史记录设置已更新。请退出并重新登录，或者运行 'source ~/.bashrc' 以应用更改。"
@@ -284,22 +293,30 @@ set_timezone_to_gmt8() {
 
 disable_and_remove_snapd() {
     echo "正在禁用 snapd 服务..."
-    systemctl stop snapd && systemctl disable snapd
 
-    echo "正在遮蔽 snapd 服务..."
-    systemctl mask snapd
+    systemctl stop snapd.service
+    systemctl disable snapd.service
+    systemctl disable snapd.socket
+    systemctl disable snapd.seeded.service
 
-    echo "正在删除 snapd 包..."
-    apt-get purge -y snapd gnome-software-plugin-snap
+    echo "正在收集所有 snap 应用..."
+    snap_packages=$(snap list | awk '{print $1}' | grep -v "Name" | tr '\n' ' ')
+
+    echo "正在删除 snap 应用..."
+    snap remove $snap_packages
 
     echo "正在删除残留文件..."
-    rm -rf ~/snap/
     rm -rf /var/cache/snapd/
-    rm -rf /var/lib/snapd/
-    rm -rf /var/snap/
+    
+    echo "正在卸载 snapd..."
+    apt autoremove --purge -y snapd
+    
+    echo "设置 snapd 包为 hold 状态，防止重新安装..."
+    apt-mark hold snapd
 
     echo "已成功禁用并移除 snapd 以及其残留文件。"
 }
+
 disable_automatic_updates() {
     CONFIG_FILE="/etc/apt/apt.conf.d/10periodic"
 
@@ -424,7 +441,7 @@ disable_ipv6() {
 # 主菜单循环
 while true; do
     echo "选择要执行的操作 (可用逗号分隔多个选项，或输入范围如1-15):"
-    echo "1) 配置历史记录设置"
+    echo "1) 配置历史格式和终端提示符样式"
     echo "2) 将时区设置为北京时间"
     echo "3) 安装常用软件"
     echo "4) 安装 Go"
