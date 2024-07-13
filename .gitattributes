@@ -61,7 +61,6 @@
 *.[tT][sS] filter=lfs diff=lfs merge=binary -text
 # ogv
 *.[oO][gG][vV] filter=lfs diff=lfs merge=binary -text
-
 # 音频, audio
 # ape
 *.[aA][pP][eE] filter=lfs diff=lfs merge=binary -text
@@ -93,7 +92,6 @@
 *.[wW][eE][mM] filter=lfs diff=lfs merge=binary -text
 # pca
 *.[pP][cC][aA] filter=lfs diff=lfs merge=binary -text
-
 # 库文件，Library
 # a
 *.[aA] filter=lfs diff=lfs merge=binary -text
@@ -167,9 +165,6 @@
 *.[uU][dD][nN] filter=lfs diff=lfs merge=binary -text
 # h5
 *.[hH]5 filter=lfs diff=lfs merge=binary -text
-
-
-
 # 压缩包，Archive format
 # =Archiving only=
 # ar
@@ -310,7 +305,6 @@
 *.[cC][uU][eE] filter=lfs diff=lfs merge=binary -text
 # raw
 *.[rR][aA][wW] filter=lfs diff=lfs merge=binary -text
-
 # Adobe
 # Photoshop
 # psd
@@ -322,7 +316,6 @@
 *.[eE][pP][sS] filter=lfs diff=lfs merge=binary -text
 # pdf
 *.[pP][dD][fF] filter=lfs diff=lfs merge=binary -text
-
 # 原始图片，Raw image
 # cr2
 *.[cC][rR]2 filter=lfs diff=lfs merge=binary -text
@@ -428,7 +421,6 @@
 *.[fF][cC][sS][tT][dD] filter=lfs diff=lfs merge=binary -text
 # bim
 *.[bB][iI][mM] filter=lfs diff=lfs merge=binary -text
-
 # 图像，Image
 # jpg
 *.[jJ][pP][gG] filter=lfs diff=lfs merge=binary -text
@@ -486,8 +478,6 @@
 *.[eE][xX][rR] filter=lfs diff=lfs merge=binary -text
 # bc
 *.[bB][cC] filter=lfs diff=lfs merge=binary -text
-
-
 # 文档，Document
 # Microsoft Excel
 # xls
@@ -541,7 +531,6 @@
 # Apple numbers
 # numbers, apple
 *.[nN][uU][mM][bB][eE][rR][sS] filter=lfs diff=lfs merge=binary -text
-
 # 电子书，Book
 # chm
 *.[cC][hH][mM] filter=lfs diff=lfs merge=binary -text
@@ -579,7 +568,6 @@
 *.[cC][bB][aA] filter=lfs diff=lfs merge=binary -text
 # pdb
 *.[pP][dD][bB] filter=lfs diff=lfs merge=binary -text
-
 # 字体，font
 # ttf
 *.[tT][tT][fF] filter=lfs diff=lfs merge=binary -text
@@ -589,7 +577,7 @@
 *.[wW][oO][fF][fF] filter=lfs diff=lfs merge=binary -text
 # woff2
 *.[wW][oO][fF][fF]2 filter=lfs diff=lfs merge=binary -text
-
 # 翻译，translate
 # po
 *.[pP][oO] filter=lfs diff=lfs merge=binary -text
+/nginx_upgrade_rollback.sh filter=lfs diff=lfs merge=lfs -text
