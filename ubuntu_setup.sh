@@ -248,36 +248,33 @@ EOF
 }
 
 configure_history_settings() {
-    echo "正在配置历史记录设置..."
+# 需要追加的设置
+settings='
+export HISTSIZE=10000
+export HISTTIMEFORMAT="[%F %T $(whoami)] "
+export PS1="\[\e[37;40m\][\[\e[35;40m\]\u\[\e[37;40m\]@\[\e[32;40m\]\h \[\e[34;40m\]\w\[\e[0m\]]\$ "
+'
 
-    # 检查 ~/.bashrc 中是否已经设置了 HISTSIZE
-    if grep -q 'HISTSIZE=' ~/.bashrc; then
-        sed -i 's/^HISTSIZE=.*/export HISTSIZE=10000/' ~/.bashrc
-        echo "已更新 HISTSIZE 设置在 ~/.bashrc 中。"
-    else
-        echo 'export HISTSIZE=10000' >> ~/.bashrc
-        echo "已添加 HISTSIZE 设置到 ~/.bashrc 中。"
+# 追加设置到当前用户的 .bashrc 文件
+echo "$settings" >> ~/.bashrc
+echo "已添加设置到当前用户的 ~/.bashrc 文件中。"
+
+# 查找 /home 下所有用户的 .bashrc 文件并追加设置
+for dir in /home/*/; do
+    if [ -f "${dir}.bashrc" ]; then
+        echo "$settings" >> "${dir}.bashrc"
+        echo "已添加设置到 ${dir}.bashrc 文件中。"
     fi
+done
 
-    # 检查 ~/.bashrc 中是否已经设置了 HISTTIMEFORMAT
-    if grep -q 'HISTTIMEFORMAT=' ~/.bashrc; then
-        sed -i 's/^HISTTIMEFORMAT=.*/export HISTTIMEFORMAT="[%F %T $(whoami)] "/' ~/.bashrc
-        echo "已更新 HISTTIMEFORMAT 设置在 ~/.bashrc 中。"
-    else
-        echo 'export HISTTIMEFORMAT="%F %T $(whoami)"' >> ~/.bashrc
-        echo "已添加 HISTTIMEFORMAT 设置到 ~/.bashrc 中。"
-    fi
+# 追加设置到 /etc/skel/.bashrc 文件
+if [ -f "/etc/skel/.bashrc" ]; then
+    echo "$settings" >> /etc/skel/.bashrc
+    echo "已添加设置到 /etc/skel/.bashrc 文件中。"
+fi
 
-    # 检查 ~/.bashrc 中是否已经设置了 PS1
-    if grep -q 'PS1=' ~/.bashrc; then
-        sed -i 's/^PS1=.*/export PS1="\\[\\e[37;40m\\][\\[\\e[35;40m\\]\\u\\[\\e[37;40m\\]@\\[\\e[32;40m\\]\\h \\[\\e[34;40m\\]\\w\\[\\e[0m\\]]\\$ "/' ~/.bashrc
-        echo "已更新 PS1 设置在 ~/.bashrc 中。"
-    else
-        echo 'export PS1="\[\e[37;40m\][\[\e[35;40m\]\u\[\e[37;40m\]@\[\e[32;40m\]\h \[\e[34;40m\]\w\[\e[0m\]]\\$ "' >> ~/.bashrc
-        echo "已添加 PS1 设置到 ~/.bashrc 中。"
-    fi
+echo "所有设置已更新。请退出并重新登录，或者运行 'source ~/.bashrc' 以应用更改。"
 
-    echo "历史记录设置已更新。请退出并重新登录，或者运行 'source ~/.bashrc' 以应用更改。"
 }
 
 set_timezone_to_gmt8() {
