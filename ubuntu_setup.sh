@@ -472,7 +472,6 @@ toggle_ipv6() {
     sudo sysctl -p
 }
 
-
 setup_machine_id() {
     local machine_id_file="/etc/machine-id"
     local cron_file="/etc/crontab"
@@ -482,9 +481,9 @@ setup_machine_id() {
     # 删除 /etc/machine-id 文件
     if [ -f "$machine_id_file" ]; then
         sudo rm "$machine_id_file"
-        echo "Deleted $machine_id_file"
+        echo "已删除 $machine_id_file"
     else
-        echo "$machine_id_file does not exist, no need to delete"
+        echo "$machine_id_file 不存在，无需删除"
     fi
 
     # 检查并去重添加 cron 任务
@@ -492,18 +491,18 @@ setup_machine_id() {
     echo "$cron_task" >> "$temp_file"
     sudo crontab "$temp_file"
     rm "$temp_file"
-    echo "Added cron task to crontab"
+    echo "已添加 cron 任务到 crontab"
 
     # 询问是否要重启
-    read -p "Do you want to reboot now? (y/n): " answer
+    echo -e "\e[31m是否要立即重启？(y/n):\e[0m"
+    read -p "" answer
     if [[ "$answer" =~ ^[Yy]$ ]]; then
-        echo "Rebooting..."
+        echo "正在重启..."
         sudo reboot
     else
-        echo "Reboot canceled"
+        echo "已取消重启"
     fi
 }
-
 
 # 主菜单循环
 while true; do
