@@ -108,7 +108,7 @@ install_gost() {
     # 创建 /opt/gost.sh 并添加正确的 shebang
     cat <<'EOF' | sudo tee /opt/gost.sh > /dev/null
 #!/bin/bash
-gost -L="socks5://lumao:k3LVtKC6fidkuq@:18443"
+gost -L="socks5://gost:k3LVtKC6fidkuq@:18443"
 EOF
 
     # 赋予 /opt/gost.sh 可执行权限
@@ -135,8 +135,24 @@ EOF
     # 启用 GOST 服务（但不启动）
     sudo systemctl enable gost.service
 
+    # 检查防火墙状态并添加规则
+    if sudo systemctl is-active --quiet ufw; then
+        echo "检测到 ufw 防火墙启动，添加 GOST 规则..."
+        sudo ufw allow 18443/tcp
+        sudo ufw reload
+        echo "GOST 规则已添加到 ufw 防火墙。"
+    elif sudo systemctl is-active --quiet firewalld; then
+        echo "检测到 firewalld 防火墙启动，添加 GOST 规则..."
+        sudo firewall-cmd --permanent --add-port=18443/tcp
+        sudo firewall-cmd --reload
+        echo "GOST 规则已添加到 firewalld 防火墙。"
+    else
+        echo "未检测到已启用的防火墙服务。"
+    fi
+
     echo "GOST 服务配置完成，可以通过 'sudo systemctl start gost' 命令启动服务。"
 }
+
 
 install_rust() {
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
@@ -543,5 +559,3 @@ while true; do
         esac
     done
 done
-
-
