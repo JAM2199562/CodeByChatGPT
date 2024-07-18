@@ -435,6 +435,40 @@ disable_ipv6() {
     sudo sysctl -p
 }
 
+#!/bin/bash
+
+setup_machine_id() {
+    local machine_id_file="/etc/machine-id"
+    local cron_file="/etc/crontab"
+    local cron_task="@reboot [ -f /etc/machine-id ] || systemd-machine-id-setup"
+    local temp_file=$(mktemp)
+
+    # 删除 /etc/machine-id 文件
+    if [ -f "$machine_id_file" ]; then
+        sudo rm "$machine_id_file"
+        echo "Deleted $machine_id_file"
+    else
+        echo "$machine_id_file does not exist, no need to delete"
+    fi
+
+    # 检查并去重添加 cron 任务
+    sudo crontab -l | grep -v "$cron_task" > "$temp_file"
+    echo "$cron_task" >> "$temp_file"
+    sudo crontab "$temp_file"
+    rm "$temp_file"
+    echo "Added cron task to crontab"
+
+    # 询问是否要重启
+    read -p "Do you want to reboot now? (y/n): " answer
+    if [[ "$answer" =~ ^[Yy]$ ]]; then
+        echo "Rebooting..."
+        sudo reboot
+    else
+        echo "Reboot canceled"
+    fi
+}
+
+
 # 主菜单循环
 while true; do
     echo "选择要执行的操作 (可用逗号分隔多个选项，或输入范围如1-15):"
@@ -454,6 +488,7 @@ while true; do
     echo "14) 禁止 Ubuntu 自动更新"
     echo "15) 禁止 Ubuntu 更新内核"
     echo "16) 禁用IPv6"
+    echo "17) 重新生成主机的machine-id"
     echo "q) 退出"
     read -p "请输入选项: " choice
 
@@ -503,6 +538,7 @@ while true; do
             14) disable_automatic_updates ;;
             15) disable_kernel_package_installation ;;
             16) disable_ipv6 ;;
+            17) setup_machine_id ;;
             *) echo "无效的选项: $i" ;;
         esac
     done
