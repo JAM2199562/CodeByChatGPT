@@ -54,7 +54,7 @@ install_xray() {
     # 定义安装命令
     INSTALL_CMD="bash -c \"\$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)\" @ install"
 
-    # 如果在中国大陆，则使用代理链接
+    # 如果在中国大陆，则使用代理连接
     if [ "$in_china" = "y" ]; then
         INSTALL_CMD="bash -c \"\$(curl -L https://ghproxy.nyxyy.org/https://github.com/XTLS/Xray-install/raw/main/install-release.sh)\" @ install"
     fi
@@ -444,14 +444,34 @@ install_chsrc() {
     fi
 }
 
-disable_ipv6() {
-    echo "net.ipv6.conf.all.disable_ipv6 = 1" | sudo tee -a /etc/sysctl.conf
-    echo "net.ipv6.conf.default.disable_ipv6 = 1" | sudo tee -a /etc/sysctl.conf
-    echo "net.ipv6.conf.lo.disable_ipv6 = 1" | sudo tee -a /etc/sysctl.conf
+toggle_ipv6() {
+    echo "请选择一个选项："
+    echo "1. 禁用IPv6"
+    echo "2. 启用IPv6"
+    read -p "请输入你的选择 [1 或 2]: " choice
+
+    case $choice in
+        1)
+            echo "正在禁用IPv6..."
+            echo "net.ipv6.conf.all.disable_ipv6 = 1" | sudo tee -a /etc/sysctl.conf
+            echo "net.ipv6.conf.default.disable_ipv6 = 1" | sudo tee -a /etc/sysctl.conf
+            echo "net.ipv6.conf.lo.disable_ipv6 = 1" | sudo tee -a /etc/sysctl.conf
+            ;;
+        2)
+            echo "正在启用IPv6..."
+            sudo sed -i '/net.ipv6.conf.all.disable_ipv6/d' /etc/sysctl.conf
+            sudo sed -i '/net.ipv6.conf.default.disable_ipv6/d' /etc/sysctl.conf
+            sudo sed -i '/net.ipv6.conf.lo.disable_ipv6/d' /etc/sysctl.conf
+            ;;
+        *)
+            echo "无效的选择。请输入1或2。"
+            return 1
+            ;;
+    esac
+
     sudo sysctl -p
 }
 
-#!/bin/bash
 
 setup_machine_id() {
     local machine_id_file="/etc/machine-id"
@@ -503,7 +523,7 @@ while true; do
     echo "13) 禁用并移除 Snapd"
     echo "14) 禁止 Ubuntu 自动更新"
     echo "15) 禁止 Ubuntu 更新内核"
-    echo "16) 禁用IPv6"
+    echo "16) 禁用/启用IPv6"
     echo "17) 重新生成主机的machine-id"
     echo "q) 退出"
     read -p "请输入选项: " choice
@@ -553,7 +573,7 @@ while true; do
             13) disable_and_remove_snapd ;;
             14) disable_automatic_updates ;;
             15) disable_kernel_package_installation ;;
-            16) disable_ipv6 ;;
+            16) toggle_ipv6 ;;
             17) setup_machine_id ;;
             *) echo "无效的选项: $i" ;;
         esac
