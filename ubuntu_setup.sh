@@ -12,7 +12,14 @@ in_china=${in_china,,}  # 转换为小写
 
 # 功能函数
 install_common_software() {
-    apt install -y curl vim wget nload mlocate net-tools screen git autoconf dnsutils autoconf libtool automake build-essential libgmp-dev nload sysstat
+    # 更新软件包列表
+    sudo apt update
+
+    # 安装通用软件包
+    sudo apt install -y curl vim wget nload net-tools screen git autoconf dnsutils autoconf libtool automake build-essential libgmp-dev nload sysstat jq
+
+    # 安装 plocate 或 mlocate
+    sudo apt install -y plocate || sudo apt install -y mlocate
 }
 
 install_go() {
