@@ -16,7 +16,6 @@ install_common_software() {
 }
 
 install_go() {
-
     # 检查是否已经安装 Go
     if command -v go >/dev/null 2>&1; then
         INSTALLED_GO_VERSION=$(go version | awk '{print $3}')
@@ -24,14 +23,51 @@ install_go() {
         return
     fi
 
-    # Go 版本号
-    GO_VERSION="1.21.6"
+    # 获取操作系统架构
+    ARCH=$(uname -m)
+    case $ARCH in
+        x86_64)
+            ARCH="amd64"
+            ;;
+        aarch64)
+            ARCH="arm64"
+            ;;
+        armv7l)
+            ARCH="armv6l"
+            ;;
+        *)
+            echo "不支持的架构: $ARCH"
+            exit 1
+            ;;
+    esac
+
+    # 获取全部 Go 版本清单
+    GO_VERSIONS_JSON=$(curl -s https://golang.google.cn/dl/?mode=json)
+    GO_VERSIONS=$(echo "$GO_VERSIONS_JSON" | jq -r '.[].version')
+
+    # 打印可用的 Go 版本供用户选择
+    echo "可用的 Go 版本如下："
+    echo "$GO_VERSIONS" | nl -w 2 -s '. '
+
+    # 让用户选择 Go 版本
+    read -p "请输入要安装的 Go 版本号前的序号: " VERSION_INDEX
+
+    # 获取用户选择的版本号
+    GO_VERSION=$(echo "$GO_VERSIONS" | sed -n "${VERSION_INDEX}p")
+
+    if [ -z "$GO_VERSION" ]; then
+        echo "无效的选择。"
+        return
+    fi
+
+    # 去掉版本号中的 'go' 前缀
+    GO_VERSION_NUMBER=$(echo "$GO_VERSION" | sed 's/^go//')
 
     # 下载 Go 二进制文件
-    curl -LO "https://golang.google.cn/dl/go${GO_VERSION}.linux-amd64.tar.gz"
+    curl -LO "https://golang.google.cn/dl/${GO_VERSION}.linux-${ARCH}.tar.gz"
 
     # 解压到 /usr/local 目录
-    sudo tar -C /usr/local -xzf "go${GO_VERSION}.linux-amd64.tar.gz"
+    sudo tar -C /usr/local -xzf "${GO_VERSION}.linux-${ARCH}.tar.gz"
 
     # 备份 /etc/profile 文件
     sudo cp /etc/profile /etc/profile.bak
@@ -45,9 +81,9 @@ install_go() {
     export PATH=$PATH:/usr/local/go/bin
 
     # 清理下载的 tar.gz 文件
-    rm "go${GO_VERSION}.linux-amd64.tar.gz"
+    rm "${GO_VERSION}.linux-${ARCH}.tar.gz"
 
-    echo "Go ${GO_VERSION} has been installed. Please log out and log back in to ensure Go is available in your environment."
+    echo "Go ${GO_VERSION_NUMBER} 已安装。请注销并重新登录以确保 Go 在您的环境中可用。"
 }
 
 install_xray() {
