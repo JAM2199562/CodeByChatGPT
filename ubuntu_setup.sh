@@ -572,6 +572,54 @@ setup_machine_id() {
     fi
 }
 
+install_conda_systemwide() {
+    # 检查系统架构
+    ARCH=$(uname -m)
+    if [ "$ARCH" = "x86_64" ]; then
+        CONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh"
+    elif [ "$ARCH" = "aarch64" ]; then
+        CONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh"
+    else
+        echo "不支持的架构: $ARCH"
+        exit 1
+    fi
+
+    # 下载 Miniconda 安装脚本
+    curl -LO "$CONDA_URL"
+
+    # 赋予安装脚本可执行权限
+    chmod +x Miniconda3-latest-Linux-*.sh
+
+    # 询问用户输入安装路径
+    read -p "请输入安装路径（默认 /opt/miniconda）: " INSTALL_PATH
+    INSTALL_PATH=${INSTALL_PATH:-/opt/miniconda}
+
+    # 运行安装脚本，自动同意协议并指定安装路径
+    sudo ./Miniconda3-latest-Linux-*.sh -b -p "$INSTALL_PATH"
+
+    # 初始化 Conda
+    sudo "$INSTALL_PATH/bin/conda" init
+
+    # 为所有用户添加 Conda 路径到环境变量
+    echo "export PATH=$INSTALL_PATH/bin:\$PATH" | sudo tee /etc/profile.d/conda.sh
+
+    # 重新加载环境变量
+    source /etc/profile.d/conda.sh
+
+    # 检查 Conda 版本并验证安装成功
+    if conda --version >/dev/null 2>&1; then
+        CONDA_VERSION=$(conda --version)
+        echo "Conda 已成功安装在 $INSTALL_PATH，并且所有用户都可以使用！"
+        echo "安装的 Conda 版本为: $CONDA_VERSION"
+    else
+        echo "Conda 安装失败，请检查错误信息。"
+        exit 1
+    fi
+
+    # 清理安装脚本
+    rm -f Miniconda3-latest-Linux-*.sh
+}
+
 # 主菜单循环
 while true; do
     echo "选择要执行的操作 (可用逗号分隔多个选项，或输入范围如1-15):"
@@ -592,6 +640,7 @@ while true; do
     echo "15) 禁止 Ubuntu 更新内核"
     echo "16) 禁用/启用IPv6"
     echo "17) 重新生成主机的machine-id"
+    echo "18) 安装miniconda"
     echo "q) 退出"
     read -p "请输入选项: " choice
 
@@ -642,6 +691,7 @@ while true; do
             15) disable_kernel_package_installation ;;
             16) toggle_ipv6 ;;
             17) setup_machine_id ;;
+            18) install_conda_systemwide ;;
             *) echo "无效的选项: $i" ;;
         esac
     done
