@@ -109,9 +109,27 @@ install_gost() {
         sudo apt-get update && sudo apt-get install -y tar gzip
     fi
 
+    # 获取操作系统架构
+    ARCH=$(uname -m)
+    case $ARCH in
+        x86_64)
+            ARCH="amd64"
+            ;;
+        aarch64)
+            ARCH="arm64"
+            ;;
+        armv7l)
+            ARCH="armv7"
+            ;;
+        *)
+            echo "不支持的架构: $ARCH"
+            exit 1
+            ;;
+    esac
+
     # GOST 版本和下载链接
     GOST_VERSION="3.0.0-rc10"
-    DOWNLOAD_URL="https://github.com/go-gost/gost/releases/download/v${GOST_VERSION}/gost_${GOST_VERSION}_linux_amd64.tar.gz"
+    DOWNLOAD_URL="https://github.com/go-gost/gost/releases/download/v${GOST_VERSION}/gost_${GOST_VERSION}_linux_${ARCH}.tar.gz"
 
     # 如果在中国大陆，修改下载链接
     if [ "$in_china" = "y" ]; then
@@ -188,7 +206,6 @@ EOF
 
     echo "GOST 服务配置完成，可以通过 'sudo systemctl start gost' 命令启动服务。"
 }
-
 
 install_rust() {
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
