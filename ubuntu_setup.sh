@@ -159,10 +159,14 @@ install_gost() {
     # 删除安装包
     rm -rf gost.tar.gz
 
+    # 询问用户端口和密码
+    read -p "请输入要开启的端口: " GOST_PORT
+    read -p "请输入要设置的密码: " GOST_PASSWORD
+
     # 创建 /opt/gost.sh 并添加正确的 shebang
-    cat <<'EOF' | sudo tee /opt/gost.sh > /dev/null
+    cat <<EOF | sudo tee /opt/gost.sh > /dev/null
 #!/bin/bash
-gost -L="socks5://gost:k3LVtKC6fidkuq@:18443"
+gost -L="socks5://gost:${GOST_PASSWORD}@:${GOST_PORT}"
 EOF
 
     # 赋予 /opt/gost.sh 可执行权限
@@ -192,19 +196,23 @@ EOF
     # 检查防火墙状态并添加规则
     if sudo systemctl is-active --quiet ufw; then
         echo "检测到 ufw 防火墙启动，添加 GOST 规则..."
-        sudo ufw allow 18443/tcp
+        sudo ufw allow ${GOST_PORT}/tcp
         sudo ufw reload
         echo "GOST 规则已添加到 ufw 防火墙。"
     elif sudo systemctl is-active --quiet firewalld; then
         echo "检测到 firewalld 防火墙启动，添加 GOST 规则..."
-        sudo firewall-cmd --permanent --add-port=18443/tcp
+        sudo firewall-cmd --permanent --add-port=${GOST_PORT}/tcp
         sudo firewall-cmd --reload
         echo "GOST 规则已添加到 firewalld 防火墙。"
     else
         echo "未检测到已启用的防火墙服务。"
     fi
 
-    echo "GOST 服务配置完成，可以通过 'sudo systemctl start gost' 命令启动服务。"
+    echo "GOST 服务配置完成。"
+    echo "协议: socks5"
+    echo "端口: ${GOST_PORT}"
+    echo "密码: ${GOST_PASSWORD}"
+    echo "可以通过 'sudo systemctl start gost' 命令启动服务。"
 }
 
 install_rust() {
