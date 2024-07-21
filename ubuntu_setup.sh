@@ -620,6 +620,25 @@ install_conda_systemwide() {
     rm -f Miniconda3-latest-Linux-*.sh
 }
 
+install_1panel() {
+    # 下载安装脚本
+    curl -sSL https://resource.fit2cloud.com/1panel/package/quick_start.sh -o quick_start.sh
+
+    # 执行安装脚本
+    sudo bash quick_start.sh
+
+    # 检查安装是否成功
+    if [ $? -eq 0 ]; then
+        echo "1Panel 安装成功。"
+    else
+        echo "1Panel 安装失败，请检查错误信息。"
+        exit 1
+    fi
+
+    # 删除安装脚本
+    rm -f quick_start.sh
+}
+
 # 主菜单循环
 while true; do
     echo "选择要执行的操作 (可用逗号分隔多个选项，或输入范围如1-15):"
@@ -641,6 +660,7 @@ while true; do
     echo "16) 禁用/启用IPv6"
     echo "17) 重新生成主机的machine-id"
     echo "18) 安装miniconda"
+    echo "19) 安装1panel面板"
     echo "q) 退出"
     read -p "请输入选项: " choice
 
@@ -692,6 +712,7 @@ while true; do
             16) toggle_ipv6 ;;
             17) setup_machine_id ;;
             18) install_conda_systemwide ;;
+            19) install_1panel ;;
             *) echo "无效的选项: $i" ;;
         esac
     done
