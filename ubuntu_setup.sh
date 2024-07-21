@@ -388,10 +388,10 @@ disable_and_remove_snapd() {
 
     echo "正在删除残留文件..."
     rm -rf /var/cache/snapd/
-    
+
     echo "正在卸载 snapd..."
     apt autoremove --purge -y snapd
-    
+
     echo "设置 snapd 包为 hold 状态，防止重新安装..."
     apt-mark hold snapd
 
@@ -578,9 +578,9 @@ while true; do
     echo "1) 配置历史格式和终端提示符样式"
     echo "2) 将时区设置为北京时间"
     echo "3) 安装常用软件"
-    echo "4) 安装 Go"
-    echo "5) 安装 Node.js 和 Yarn"
-    echo "6) 安装 chsrc 命令行换源工具"
+    echo "4) 安装 chsrc 命令行换源工具"
+    echo "5) 安装 Go"
+    echo "6) 安装 Node.js 和 Yarn"
     echo "7) 安装 Docker"
     echo "8) 安装 Rust"
     echo "9) 安装 Xray"
@@ -628,9 +628,9 @@ while true; do
             1) configure_history_settings ;;
             2) set_timezone_to_gmt8 ;;
             3) install_common_software ;;
-            4) install_go ;;
-            5) install_node_and_yarn ;;
-            6) install_chsrc ;;
+            4) install_chsrc ;;
+            5) install_go ;;
+            6) install_node_and_yarn ;;
             7) install_docker ;;
             8) install_rust ;;
             9) install_xray ;;
