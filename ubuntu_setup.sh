@@ -639,6 +639,76 @@ install_1panel() {
     rm -f quick_start.sh
 }
 
+disable_systemd_resolved() {
+  # 检查 Ubuntu 版本
+  UBUNTU_VERSION=$(lsb_release -rs)
+
+  if [[ "$UBUNTU_VERSION" == "24."* ]]; then
+    echo -e "\e[31m该脚本不兼容 Ubuntu 24 版本，退出。\e[0m"
+    exit 1
+  fi
+
+  # 禁用并停止 systemd-resolved 服务
+  sudo systemctl disable systemd-resolved.service
+  sudo systemctl stop systemd-resolved.service
+
+  # 删除现有的 /etc/resolv.conf 符号链接
+  if [ -L /etc/resolv.conf ]; then
+    sudo rm /etc/resolv.conf
+  fi
+
+  # 创建一个新的空的 /etc/resolv.conf 文件
+  sudo touch /etc/resolv.conf
+
+  # 列出 /etc/netplan/ 目录中的所有 .yaml 文件
+  NETPLAN_DIR="/etc/netplan"
+  NETPLAN_FILES=($(ls $NETPLAN_DIR/*.yaml))
+
+  # 如果没有找到 netplan 配置文件，退出脚本
+  if [ ${#NETPLAN_FILES[@]} -eq 0 ]; then
+    echo "未在 $NETPLAN_DIR 中找到 Netplan 配置文件。"
+    exit 1
+  fi
+
+  # 如果只有一个 netplan 配置文件，直接备份并修改
+  if [ ${#NETPLAN_FILES[@]} -eq 1 ]; then
+    NETPLAN_CONFIG="${NETPLAN_FILES[0]}"
+    echo "找到单一的 Netplan 配置文件: $NETPLAN_CONFIG"
+    echo "正在备份并修改该文件。"
+  else
+    # 如果有多个配置文件，列出文件并提示用户选择
+    echo "找到多个 Netplan 配置文件:"
+    select NETPLAN_CONFIG in "${NETPLAN_FILES[@]}"; do
+      if [ -n "$NETPLAN_CONFIG" ]; then
+        echo "你选择了: $NETPLAN_CONFIG"
+        break
+      else
+        echo "选择无效。请重试。"
+      fi
+    done
+  fi
+
+  # 备份原配置文件
+  sudo cp $NETPLAN_CONFIG ${NETPLAN_CONFIG}.bak
+
+  # 读取现有的 Netplan 配置文件，查找已配置的网卡名称
+  INTERFACES=$(awk '/ethernets:/,/^[^ ]/{ if ($1 ~ /^[^ ]/) print $1 }' $NETPLAN_CONFIG | sed 's/://g')
+
+  # 修改 Netplan 配置文件，添加 DHCP DNS 配置
+  for INTERFACE in $INTERFACES; do
+    sudo sed -i "/$INTERFACE:/,/^[^ ]/s/\(dhcp4: true\)/\1\n      dhcp4-overrides:\n        use-dns: true/" $NETPLAN_CONFIG
+  done
+
+  # 应用 Netplan 配置
+  sudo netplan apply
+
+  # 重新启动网络服务以获取新的 DHCP 配置
+  sudo dhclient -r
+  sudo dhclient
+
+  echo "配置完成。系统现在使用 DHCP 提供的 DNS 服务器。"
+}
+
 # 主菜单循环
 while true; do
     echo "选择要执行的操作 (可用逗号分隔多个选项，或输入范围如1-15):"
@@ -661,6 +731,7 @@ while true; do
     echo "17) 重新生成主机的machine-id"
     echo "18) 安装miniconda"
     echo "19) 安装1panel面板"
+    echo "20) 禁用systemd-resolved，释放53端口"
     echo "q) 退出"
     read -p "请输入选项: " choice
 
@@ -713,6 +784,7 @@ while true; do
             17) setup_machine_id ;;
             18) install_conda_systemwide ;;
             19) install_1panel ;;
+            20) disable_systemd_resolved ;;
             *) echo "无效的选项: $i" ;;
         esac
     done
