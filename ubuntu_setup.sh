@@ -639,6 +639,28 @@ install_1panel() {
     rm -f quick_start.sh
 }
 
+disable_resolved_and_configure_netplan_dns() {
+    echo "Disabling systemd-resolved..."
+    sudo systemctl stop systemd-resolved
+    sudo systemctl disable systemd-resolved
+
+    echo "Removing /etc/resolv.conf..."
+    sudo rm -f /etc/resolv.conf
+
+    echo "Creating symbolic link to /run/systemd/resolve/resolv.conf..."
+    sudo ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
+
+    echo "Applying Netplan configuration..."
+    sudo netplan apply
+
+    echo "Checking DNS resolution..."
+    if nslookup google.com > /dev/null 2>&1; then
+        echo -e "\e[32mDNS resolution is working correctly.\e[0m"
+    else
+        echo -e "\e[31mDNS resolution failed. Please check your configuration.\e[0m"
+    fi
+}
+
 # 主菜单循环
 while true; do
     echo "选择要执行的操作 (可用逗号分隔多个选项，或输入范围如1-15):"
@@ -661,6 +683,7 @@ while true; do
     echo "17) 重新生成主机的machine-id"
     echo "18) 安装miniconda"
     echo "19) 安装1panel面板"
+    echo "20) 禁用system-resolved"
     echo "q) 退出"
     read -p "请输入选项: " choice
 
@@ -713,6 +736,7 @@ while true; do
             17) setup_machine_id ;;
             18) install_conda_systemwide ;;
             19) install_1panel ;;
+            20) disable_resolved_and_configure_netplan_dns ;;
             *) echo "无效的选项: $i" ;;
         esac
     done
