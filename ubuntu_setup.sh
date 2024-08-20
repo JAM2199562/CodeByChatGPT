@@ -313,7 +313,7 @@ EOF
     chmod a+x /home/$VNC_USER/.vnc/xstartup
 
     # 创建 vnc用户的vnc.sh 脚本
-    cat <<EOF > /home/$VNC_USER/vnc_start.sh
+    cat <<EOF > /home/$VNC_USER/vnc.sh
 #!/bin/bash
 vncserver -kill :1
 vncserver -geometry 1920x1200
