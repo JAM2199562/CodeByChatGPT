@@ -253,22 +253,25 @@ install_vnc_server() {
     # 指定 VNC 用户的用户名
     VNC_USER="vnc"
 
-    # 询问用户要设置的vnc密码
-    read -p "您要设定的vnc密码: " VNC_PASSWD
+    # 询问用户要设置的 VNC 密码
+    read -p "请输入要设置的 VNC 密码: " VNC_PASSWD
 
     # 创建 VNC 用户
     echo "创建 VNC 用户: $VNC_USER"
     sudo adduser --gecos "" $VNC_USER --disabled-password
     echo "$VNC_USER:$VNC_PASSWD" | sudo chpasswd
-    # 检查系统是否安装了图形用户界面
-    if command -v startxfce4 &> /dev/null; then
-        echo "XFCE 已安装。"
-    elif command -v gnome-session &> /dev/null || command -v kde-config &> /dev/null; then
-        echo "检测到非 XFCE 的 GUI 环境。脚本退出。"
-        return 1
+
+    # 判断并安装合适的桌面环境
+    if command -v gnome-session &> /dev/null; then
+        echo "检测到 GNOME 桌面环境。"
+        DESKTOP_ENV="gnome"
+    elif command -v startxfce4 &> /dev/null; then
+        echo "检测到 XFCE 桌面环境。"
+        DESKTOP_ENV="xfce"
     else
-        echo "安装 XFCE..."
+        echo "未检测到桌面环境，正在安装 XFCE..."
         sudo apt install -y xfce4 xfce4-goodies dbus-x11
+        DESKTOP_ENV="xfce"
     fi
 
     # 安装 tightvncserver
@@ -277,58 +280,52 @@ install_vnc_server() {
     # 设置 VNC 密码和配置文件
     sudo mkdir -p "/home/$VNC_USER/.vnc"
     echo "$VNC_PASSWD" | sudo vncpasswd -f > "/home/$VNC_USER/.vnc/passwd"
-    sudo chmod 600 "/home/vnc/.vnc/passwd"
-    echo "geometry=1920x1200" | sudo tee "/home/$VNC_USER/.vnc/config"
+    sudo chmod 600 "/home/$VNC_USER/.vnc/passwd"
 
-    # 配置 xstartup 文件
-    cat <<EOF > /home/$VNC_USER/.vnc/xstartup
-    #!/bin/sh
-    unset SESSION_MANAGER
-    unset DBUS_SESSION_BUS_ADDRESS
-    xrdb /home/vnc/.Xresources
-    startxfce4 &
-EOF
-
-    sudo chmod +x /home/$VNC_USER/.vnc/xstartup
-    sudo chown -R vnc:vnc "/home/$VNC_USER/.vnc"
-
-
-    # 设置 VNC 服务器默认分辨率
-    echo "geometry=1920x1200" > "/home/$VNC_USER/.vnc/config"
-
-    # 设置 VNC 服务器
-    vncserver -kill :1 > /dev/null 2>&1
-    vncserver
-
-    # 配置 xstartup 文件
-    cat <<EOF > /home/$VNC_USER/.vnc/xstartup
+    # 根据桌面环境配置 xstartup 文件
+    if [ "$DESKTOP_ENV" = "gnome" ]; then
+        cat <<EOF > "/home/$VNC_USER/.vnc/xstartup"
 #!/bin/sh
 unset SESSION_MANAGER
 unset DBUS_SESSION_BUS_ADDRESS
-xrdb \$HOME/.Xresources
+export XKL_XMODMAP_DISABLE=1
+gnome-session &
+EOF
+    else
+        cat <<EOF > "/home/$VNC_USER/.vnc/xstartup"
+#!/bin/sh
+unset SESSION_MANAGER
+unset DBUS_SESSION_BUS_ADDRESS
+xrdb /home/$VNC_USER/.Xresources
 startxfce4 &
 EOF
-    sudo chown -R vnc:vnc "/home/$VNC_USER/.vnc/xstartup"
-    # 使 xstartup 文件可执行
-    chmod a+x /home/$VNC_USER/.vnc/xstartup
+    fi
 
-    # 创建 vnc用户的vnc.sh 脚本
-    cat <<EOF > /home/$VNC_USER/vnc_start.sh
+    sudo chmod +x "/home/$VNC_USER/.vnc/xstartup"
+    sudo chown -R $VNC_USER:$VNC_USER "/home/$VNC_USER/.vnc"
+
+    # 创建 VNC 启动脚本
+    cat <<EOF > "/home/$VNC_USER/vnc_start.sh"
 #!/bin/bash
-vncserver -kill :1
-vncserver -geometry 1920x1200
+vncserver -kill :1 > /dev/null 2>&1
+vncserver -geometry 1920x1200 :1
 EOF
 
-    # 创建 vnc用户的vnc.sh 脚本
-    cat <<EOF > /root/vnc.sh
+    sudo chmod +x "/home/$VNC_USER/vnc_start.sh"
+    sudo chown $VNC_USER:$VNC_USER "/home/$VNC_USER/vnc_start.sh"
+
+    # 创建 root 用户的启动脚本
+    cat <<EOF > "/root/vnc.sh"
 #!/bin/bash
-sudo -u vnc bash /home/vnc/vnc.sh
+sudo -u $VNC_USER bash /home/$VNC_USER/vnc_start.sh
 EOF
-    # 使 vnc.sh 文件可执行
-    chmod +x /home/$VNC_USER/vnc.sh
-    chmod a+x /root/vnc.sh
-    chown -R vnc:vnc /home/$VNC_USER/
-    echo "VNC 服务器安装和配置完成。你可以运行 '/home/$VNC_USER/vnc.sh' 来启动 VNC 服务器。"
+
+    sudo chmod +x "/root/vnc.sh"
+
+    # 提示用户如何启动 VNC 服务器
+    echo "VNC 服务器安装和配置完成。"
+    echo "您可以运行 '/home/$VNC_USER/vnc_start.sh' 来启动 VNC 服务器。"
+    echo "或者运行 '/root/vnc.sh' 来以 root 用户身份启动 VNC 服务器。"
 }
 
 configure_history_settings() {
