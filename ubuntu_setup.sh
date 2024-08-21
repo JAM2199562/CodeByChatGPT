@@ -301,11 +301,8 @@ startxfce4 &
 EOF
     fi
 
-    sudo chmod +x "/home/$VNC_USER/.vnc/xstartup"
-    sudo chown -R $VNC_USER:$VNC_USER "/home/$VNC_USER/.vnc"
-
-    # 创建 VNC 启动脚本
-    cat <<EOF > "/home/$VNC_USER/vnc_start.sh"
+    # 创建 vnc用户的vnc.sh 脚本
+    cat <<EOF > /home/$VNC_USER/vnc.sh
 #!/bin/bash
 vncserver -kill :1 > /dev/null 2>&1
 vncserver -geometry 1920x1200 :1
@@ -380,8 +377,12 @@ disable_and_remove_snapd() {
     echo "正在收集所有 snap 应用..."
     snap_packages=$(snap list | awk '{print $1}' | grep -v "Name" | tr '\n' ' ')
 
-    echo "正在删除 snap 应用..."
-    snap remove $snap_packages
+    if [ -n "$snap_packages" ]; then
+        echo "正在删除 snap 应用..."
+        snap remove $snap_packages
+    else
+        echo "没有发现任何 snap 应用，跳过删除步骤。"
+    fi
 
     echo "正在删除残留文件..."
     rm -rf /var/cache/snapd/
