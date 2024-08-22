@@ -1,5 +1,6 @@
 #!/bin/bash
 
+
 # 检查操作系统是否为 Debian 或 Ubuntu
 if [[ -z "$(grep 'debian\|ubuntu' /etc/os-release)" ]]; then
     echo "此脚本只适用于 Debian 或 Ubuntu 系统。"
