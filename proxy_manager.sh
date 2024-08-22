@@ -100,6 +100,113 @@ EOL
     echo "Docker CLI 代理配置已完成。"
 }
 
+set_proxy_for_git() {
+    git config --global http.proxy "http://proxy.local:10882"
+    git config --global https.proxy "http://proxy.local:10882"
+    echo "Git proxy settings have been applied successfully."
+}
+
+set_proxy_for_go() {
+    go env -w GOPROXY="http://proxy.local:10882"
+    echo "Go proxy settings have been applied successfully."
+}
+
+set_proxy_for_maven() {
+    maven_settings_file="$HOME/.m2/settings.xml"
+    backup_file="${maven_settings_file}.$(date +'%Y%m%d%H%M').bak"
+
+    if [[ -f "$maven_settings_file" ]]; then
+        cp "$maven_settings_file" "$backup_file"
+        echo "Backing up $maven_settings_file to $backup_file"
+    fi
+
+    mkdir -p "$(dirname "$maven_settings_file")"
+
+    sudo tee "$maven_settings_file" > /dev/null <<EOL
+<settings>
+  <proxies>
+    <proxy>
+      <id>example-proxy</id>
+      <active>true</active>
+      <protocol>http</protocol>
+      <host>proxy.local</host>
+      <port>10882</port>
+    </proxy>
+  </proxies>
+</settings>
+EOL
+
+    echo "Maven proxy settings have been applied successfully."
+}
+
+set_proxy_for_npm() {
+    npm config set proxy "http://proxy.local:10882"
+    npm config set https-proxy "http://proxy.local:10882"
+    echo "Npm proxy settings have been applied successfully."
+}
+
+set_proxy_for_pip() {
+    pip_conf_file="$HOME/.pip/pip.conf"
+    backup_file="${pip_conf_file}.$(date +'%Y%m%d%H%M').bak"
+
+    if [[ -f "$pip_conf_file" ]]; then
+        cp "$pip_conf_file" "$backup_file"
+        echo "Backing up $pip_conf_file to $backup_file"
+    fi
+
+    mkdir -p "$(dirname "$pip_conf_file")"
+
+    sudo tee "$pip_conf_file" > /dev/null <<EOL
+[global]
+proxy = http://proxy.local:10882
+EOL
+
+    echo "Pip proxy settings have been applied successfully."
+}
+
+set_proxy_for_rsync() {
+    echo 'export RSYNC_PROXY="proxy.local:10882"' >> "$HOME/.bashrc"
+    source "$HOME/.bashrc"
+    echo "Rsync proxy settings have been applied successfully."
+}
+
+set_proxy_for_wget() {
+    wgetrc_file="$HOME/.wgetrc"
+    backup_file="${wgetrc_file}.$(date +'%Y%m%d%H%M').bak"
+
+    if [[ -f "$wgetrc_file" ]]; then
+        cp "$wgetrc_file" "$backup_file"
+        echo "Backing up $wgetrc_file to $backup_file"
+    fi
+
+    sudo tee "$wgetrc_file" > /dev/null <<EOL
+http_proxy = http://proxy.local:10882
+https_proxy = http://proxy.local:10882
+EOL
+
+    echo "Wget proxy settings have been applied successfully."
+}
+
+set_proxy_for_yarn() {
+    yarn config set proxy "http://proxy.local:10882"
+    yarn config set https-proxy "http://proxy.local:10882"
+    echo "Yarn proxy settings have been applied successfully."
+}
+
+set_proxy_for_yum() {
+    yum_conf_file="/etc/yum.conf"
+    backup_file="${yum_conf_file}.$(date +'%Y%m%d%H%M').bak"
+
+    echo "Backing up $yum_conf_file to $backup_file"
+    sudo cp "$yum_conf_file" "$backup_file"
+
+    sudo tee -a "$yum_conf_file" > /dev/null <<EOL
+proxy=http://proxy.local:10882
+EOL
+
+    echo "Yum proxy settings have been applied successfully."
+}
+
 # Main menu loop
 while true; do
     echo "Select the operation to perform (you can separate multiple options with commas or input a range like 0-12):"
