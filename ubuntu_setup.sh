@@ -254,13 +254,9 @@ install_vnc_server() {
     # 指定 VNC 用户的用户名
     VNC_USER="vnc"
 
-    # 询问用户要设置的 VNC 密码
-    read -p "请输入要设置的 VNC 密码: " VNC_PASSWD
-
     # 创建 VNC 用户
     echo "创建 VNC 用户: $VNC_USER"
     sudo adduser --gecos "" $VNC_USER --disabled-password
-    echo "$VNC_USER:$VNC_PASSWD" | sudo chpasswd
 
     # 判断并安装合适的桌面环境
     if command -v gnome-session &> /dev/null; then
@@ -278,52 +274,57 @@ install_vnc_server() {
     # 安装 tightvncserver
     sudo apt install -y tightvncserver
 
-    # 设置 VNC 密码和配置文件
+    # 设置 VNC 配置文件
     sudo mkdir -p "/home/$VNC_USER/.vnc"
-    echo "$VNC_PASSWD" | sudo vncpasswd -f > "/home/$VNC_USER/.vnc/passwd"
     sudo chmod 600 "/home/$VNC_USER/.vnc/passwd"
 
-    # 根据桌面环境配置 xstartup 文件
-    if [ "$DESKTOP_ENV" = "gnome" ]; then
-        cat <<EOF > "/home/$VNC_USER/.vnc/xstartup"
+    # 配置 xstartup 文件
+    cat <<EOF > "/home/$VNC_USER/.vnc/xstartup"
 #!/bin/sh
-unset SESSION_MANAGER
-unset DBUS_SESSION_BUS_ADDRESS
-export XKL_XMODMAP_DISABLE=1
-gnome-session &
-EOF
-    else
-        cat <<EOF > "/home/$VNC_USER/.vnc/xstartup"
-#!/bin/sh
-unset SESSION_MANAGER
-unset DBUS_SESSION_BUS_ADDRESS
-xrdb /home/$VNC_USER/.Xresources
-startxfce4 &
-EOF
-    fi
 
-    # 创建 vnc用户的vnc.sh 脚本
+xrdb \$HOME/.Xresources
+xsetroot -solid grey
+#x-terminal-emulator -geometry 80x24+10+10 -ls -title "\$VNCDESKTOP Desktop" &
+x-window-manager &
+vncconfig -iconic &
+
+# Fix to make GNOME work
+export XKL_XMODMAP_DISABLE=1
+/etc/X11/Xsession
+
+startxfce4
+EOF
+
+    # 确保 xstartup 文件有可执行权限
+    sudo chmod +x "/home/$VNC_USER/.vnc/xstartup"
+    sudo chown $VNC_USER:$VNC_USER "/home/$VNC_USER/.vnc/xstartup"
+
+    # 创建 VNC 用户的 vnc.sh 脚本
     cat <<EOF > /home/$VNC_USER/vnc.sh
 #!/bin/bash
 vncserver -kill :1 > /dev/null 2>&1
 vncserver -geometry 1920x1200 :1
 EOF
 
-    sudo chmod +x "/home/$VNC_USER/vnc_start.sh"
-    sudo chown $VNC_USER:$VNC_USER "/home/$VNC_USER/vnc_start.sh"
+    sudo chmod +x "/home/$VNC_USER/vnc.sh"
+    sudo chown $VNC_USER:$VNC_USER "/home/$VNC_USER/vnc.sh"
 
-    # 创建 root 用户的启动脚本
-    cat <<EOF > "/root/vnc.sh"
+    # 如果当前是 root 用户，创建 root 的 vnc.sh 脚本
+    if [ "$(whoami)" = "root" ]; then
+        cat <<EOF > /root/vnc.sh
 #!/bin/bash
-sudo -u $VNC_USER bash /home/$VNC_USER/vnc_start.sh
+vncserver -kill :1 > /dev/null 2>&1
+vncserver -geometry 1920x1200 :1
 EOF
 
-    sudo chmod +x "/root/vnc.sh"
+        sudo chmod +x /root/vnc.sh
+        echo "root 用户的 vnc.sh 脚本已创建。"
+    fi
 
     # 提示用户如何启动 VNC 服务器
-    echo "VNC 服务器安装和配置完成。"
-    echo "您可以运行 '/home/$VNC_USER/vnc_start.sh' 来启动 VNC 服务器。"
-    echo "或者运行 '/root/vnc.sh' 来以 root 用户身份启动 VNC 服务器。"
+    echo -e "\033[32mVNC 服务器安装和配置完成。\033[0m"
+    echo -e "\033[32m您可以切换到用户 $VNC_USER，并运行 '~/vnc.sh' 来启动 VNC 服务器。\033[0m"
+    echo -e "\033[32m如果您当前是 root 用户，您也可以运行 '~/vnc.sh' 来启动 VNC 服务器。\033[0m"
 }
 
 configure_history_settings() {
