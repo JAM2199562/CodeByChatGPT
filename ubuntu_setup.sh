@@ -259,12 +259,12 @@ install_vnc_server() {
     sudo adduser --gecos "" $VNC_USER --disabled-password
 
     # 判断并安装合适的桌面环境
-    if command -v gnome-session &> /dev/null; then
-        echo "检测到 GNOME 桌面环境。"
-        DESKTOP_ENV="gnome"
-    elif command -v startxfce4 &> /dev/null; then
+    if command -v startxfce4 &> /dev/null; then
         echo "检测到 XFCE 桌面环境。"
         DESKTOP_ENV="xfce"
+    elif command -v gnome-session &> /dev/null; then
+        echo "检测到 GNOME 桌面环境。"
+        DESKTOP_ENV="gnome"
     else
         echo "未检测到桌面环境，正在安装 XFCE..."
         sudo apt install -y xfce4 xfce4-goodies dbus-x11
@@ -299,11 +299,34 @@ EOF
     sudo chmod +x "/home/$VNC_USER/.vnc/xstartup"
     sudo chown $VNC_USER:$VNC_USER "/home/$VNC_USER/.vnc/xstartup"
 
+    # 提供分辨率选择菜单
+    echo "请选择 VNC 会话的分辨率："
+    echo "1) 1024x768"
+    echo "2) 1440x900"
+    echo "3) 1920x1080"
+    read -p "输入选项编号 [1-3]: " RESOLUTION_OPTION
+
+    case $RESOLUTION_OPTION in
+        1)
+            RESOLUTION="1024x768"
+            ;;
+        2)
+            RESOLUTION="1440x900"
+            ;;
+        3)
+            RESOLUTION="1920x1080"
+            ;;
+        *)
+            echo "无效的选项，使用默认分辨率 1920x1080。"
+            RESOLUTION="1920x1080"
+            ;;
+    esac
+
     # 创建 VNC 用户的 vnc.sh 脚本
     cat <<EOF > /home/$VNC_USER/vnc.sh
 #!/bin/bash
 vncserver -kill :1 > /dev/null 2>&1
-vncserver -geometry 1920x1200 :1
+vncserver -geometry $RESOLUTION :1
 EOF
 
     sudo chmod +x "/home/$VNC_USER/vnc.sh"
@@ -314,7 +337,7 @@ EOF
         cat <<EOF > /root/vnc.sh
 #!/bin/bash
 vncserver -kill :1 > /dev/null 2>&1
-vncserver -geometry 1920x1200 :1
+vncserver -geometry $RESOLUTION :1
 EOF
 
         sudo chmod +x /root/vnc.sh
@@ -332,6 +355,7 @@ EOF
     echo -e "\033[32m您可以切换到用户 $VNC_USER，并运行 '~/vnc.sh' 来启动 VNC 服务器。\033[0m"
     echo -e "\033[32m如果您当前是 root 用户，您也可以运行 '~/vnc.sh' 来启动 VNC 服务器。\033[0m"
 }
+
 
 configure_history_settings() {
 # 需要追加的设置
