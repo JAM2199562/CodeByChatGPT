@@ -320,7 +320,13 @@ EOF
         sudo chmod +x /root/vnc.sh
         echo "root 用户的 vnc.sh 脚本已创建。"
     fi
+    # 将 xstartup 文件复制到 root 用户的 .vnc 目录中并设置权限
+    sudo mkdir -p /root/.vnc
+    sudo cp "/home/$VNC_USER/.vnc/xstartup" "/root/.vnc/xstartup"
+    sudo chmod +x /root/.vnc/xstartup
+    sudo chown root:root /root/.vnc/xstartup
 
+    echo "xstartup 文件已复制到 /root/.vnc 并设置权限。"
     # 提示用户如何启动 VNC 服务器
     echo -e "\033[32mVNC 服务器安装和配置完成。\033[0m"
     echo -e "\033[32m您可以切换到用户 $VNC_USER，并运行 '~/vnc.sh' 来启动 VNC 服务器。\033[0m"
