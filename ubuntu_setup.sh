@@ -623,15 +623,27 @@ install_conda_systemwide() {
         exit 1
     fi
 
+    # 询问用户输入安装路径
+    read -p "请输入安装路径（默认 /opt/miniconda）: " INSTALL_PATH
+    INSTALL_PATH=${INSTALL_PATH:-/opt/miniconda}
+
+    # 检查安装路径是否存在
+    if [ -d "$INSTALL_PATH" ]; then
+        read -p "路径 $INSTALL_PATH 已存在，是否删除后重新安装？(y/n): " confirm
+        confirm=${confirm,,}  # 转换为小写
+        if [ "$confirm" = "y" ]; then
+            sudo rm -rf "$INSTALL_PATH"
+        else
+            echo "安装已取消。"
+            exit 0
+        fi
+    fi
+
     # 下载 Miniconda 安装脚本
     curl -LO "$CONDA_URL"
 
     # 赋予安装脚本可执行权限
     chmod +x Miniconda3-latest-Linux-*.sh
-
-    # 询问用户输入安装路径
-    read -p "请输入安装路径（默认 /opt/miniconda）: " INSTALL_PATH
-    INSTALL_PATH=${INSTALL_PATH:-/opt/miniconda}
 
     # 运行安装脚本，自动同意协议并指定安装路径
     sudo ./Miniconda3-latest-Linux-*.sh -b -p "$INSTALL_PATH"
