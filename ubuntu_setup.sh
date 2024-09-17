@@ -605,10 +605,19 @@ setup_machine_id() {
 install_conda_systemwide() {
     # 检查系统架构
     ARCH=$(uname -m)
+    
     if [ "$ARCH" = "x86_64" ]; then
-        CONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh"
+        if [ "$in_china" = "y" ]; then
+            CONDA_URL="https://mirrors.tuna.tsinghua.edu.cn/anaconda/miniconda/Miniconda3-latest-Linux-x86_64.sh"
+        else
+            CONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh"
+        fi
     elif [ "$ARCH" = "aarch64" ]; then
-        CONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh"
+        if [ "$in_china" = "y" ]; then
+            CONDA_URL="https://mirrors.tuna.tsinghua.edu.cn/anaconda/miniconda/Miniconda3-latest-Linux-aarch64.sh"
+        else
+            CONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh"
+        fi
     else
         echo "不支持的架构: $ARCH"
         exit 1
@@ -759,7 +768,7 @@ while true; do
     echo "15) 禁止 Ubuntu 更新内核"
     echo "16) 禁用/启用IPv6"
     echo "17) 重新生成主机的machine-id"
-    echo "18) 安装miniconda"
+    echo "18) 安装Miniconda 3"
     echo "19) 安装1panel面板"
     echo "20) 禁用systemd-resolved，释放53端口"
     echo "q) 退出"
