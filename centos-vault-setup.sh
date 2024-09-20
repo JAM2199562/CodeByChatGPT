@@ -81,7 +81,7 @@ name=Extra Packages for Enterprise Linux 7 - \$basearch
 baseurl=https://archives.fedoraproject.org/pub/archive/epel/7/\$basearch/
 failovermethod=priority
 enabled=1
-gpgcheck=1
+gpgcheck=0
 gpgkey=https://archives.fedoraproject.org/pub/archive/epel/RPM-GPG-KEY-EPEL
 EOL
 
