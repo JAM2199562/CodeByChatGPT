@@ -82,7 +82,7 @@ baseurl=https://archives.fedoraproject.org/pub/archive/epel/7/\$basearch/
 failovermethod=priority
 enabled=1
 gpgcheck=1
-gpgkey=https://archives.fedoraproject.org/pub/archive/epel/RPM-GPG-KEY-EPEL-7
+gpgkey=https://archives.fedoraproject.org/pub/archive/epel/RPM-GPG-KEY-EPEL
 EOL
 
 # 禁用 yum 插件（将 plugins 设置为 0）
