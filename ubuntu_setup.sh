@@ -17,7 +17,7 @@ install_common_software() {
     sudo apt update
 
     # 安装通用软件包
-    sudo apt install -y curl vim wget nload net-tools screen git autoconf dnsutils autoconf libtool automake build-essential libgmp-dev nload sysstat jq
+    sudo apt install -y curl vim wget nload net-tools screen git autoconf dnsutils autoconf libtool automake build-essential libgmp-dev nload sysstat jq bash-completion
 
     # 安装 plocate 或 mlocate
     sudo apt install -y plocate || sudo apt install -y mlocate
