@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 # 脚本简介:
 # 该脚本用于在Ubuntu系统上自动安装和配置vsftpd FTP服务器。
 # 它将执行以下操作：
@@ -19,11 +21,17 @@ echo "请按提示操作，以设置FTP服务。"
 # 检查并安装vsftpd
 if ! command -v vsftpd >/dev/null 2>&1; then
     echo "未发现vsftpd，正在安装..."
-    apt-get update
-    apt-get install -y vsftpd
+    apt-get update -qq
+    apt-get install -y vsftpd -qq
     echo "vsftpd 安装成功。"
 else
     echo "vsftpd 已经安装。"
+fi
+
+# 检查vsftpd服务状态
+if ! systemctl is-active --quiet vsftpd; then
+    echo "vsftpd 服务未运行，尝试启动..."
+    systemctl start vsftpd
 fi
 
 # 交互式询问用户名和密码
@@ -68,7 +76,7 @@ CHROOT_LIST="/etc/vsftpd.chroot_list"
 
 # 确保配置正确
 if [ -f "$VSFTPD_CONF" ]; then
-    cp $VSFTPD_CONF "${VSFTPD_CONF}.bak" # 备份原始配置文件
+    cp $VSFTPD_CONF "$(mktemp /tmp/vsftpd.conf.bak.XXXXXX)" # 备份原始配置文件
     sed -i '/^chroot_local_user/d' $VSFTPD_CONF
     echo "chroot_local_user=YES" >> $VSFTPD_CONF
     
@@ -85,7 +93,8 @@ if [ -f "$VSFTPD_CONF" ]; then
     echo 'write_enable=YES' >> $VSFTPD_CONF
 
 else
-    echo "错误：$VSFTPD_CONF 文件不存在。"
+    echo "错误：$VSFTPD_CONF 文件不存在。" >&2
+    exit 1
 fi
 
 # 创建chroot_list
@@ -98,5 +107,9 @@ fi
 
 # 重启vsftpd服务
 systemctl restart vsftpd
-systemctl status vsftpd
-echo "vsftpd 设置完成。"
+if systemctl is-active --quiet vsftpd; then
+    echo "vsftpd 设置完成。"
+else
+    echo "vsftpd 服务启动失败。" >&2
+    exit 1
+fi
