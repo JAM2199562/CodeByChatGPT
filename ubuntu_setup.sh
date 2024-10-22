@@ -1,5 +1,6 @@
 #!/bin/bash
 
+
 # 检查操作系统是否为 Debian 或 Ubuntu
 if [[ -z "$(grep 'debian\|ubuntu' /etc/os-release)" ]]; then
     echo "此脚本只适用于 Debian 或 Ubuntu 系统。"
@@ -16,7 +17,7 @@ install_common_software() {
     sudo apt update
 
     # 安装通用软件包
-    sudo apt install -y curl vim wget nload net-tools screen git autoconf dnsutils autoconf libtool automake build-essential libgmp-dev nload sysstat jq
+    sudo apt install -y curl vim wget nload net-tools screen git autoconf dnsutils autoconf libtool automake build-essential libgmp-dev nload sysstat jq bash-completion
 
     # 安装 plocate 或 mlocate
     sudo apt install -y plocate || sudo apt install -y mlocate
@@ -253,83 +254,108 @@ install_vnc_server() {
     # 指定 VNC 用户的用户名
     VNC_USER="vnc"
 
-    # 询问用户要设置的vnc密码
-    read -p "您要设定的vnc密码: " VNC_PASSWD
-
     # 创建 VNC 用户
     echo "创建 VNC 用户: $VNC_USER"
     sudo adduser --gecos "" $VNC_USER --disabled-password
-    echo "$VNC_USER:$VNC_PASSWD" | sudo chpasswd
-    # 检查系统是否安装了图形用户界面
+
+    # 判断并安装合适的桌面环境
     if command -v startxfce4 &> /dev/null; then
-        echo "XFCE 已安装。"
-    elif command -v gnome-session &> /dev/null || command -v kde-config &> /dev/null; then
-        echo "检测到非 XFCE 的 GUI 环境。脚本退出。"
-        return 1
+        echo "检测到 XFCE 桌面环境。"
+        DESKTOP_ENV="xfce"
+    elif command -v gnome-session &> /dev/null; then
+        echo "检测到 GNOME 桌面环境。"
+        DESKTOP_ENV="gnome"
     else
-        echo "安装 XFCE..."
+        echo "未检测到桌面环境，正在安装 XFCE..."
         sudo apt install -y xfce4 xfce4-goodies dbus-x11
+        DESKTOP_ENV="xfce"
     fi
 
     # 安装 tightvncserver
     sudo apt install -y tightvncserver
 
-    # 设置 VNC 密码和配置文件
+    # 设置 VNC 配置文件
     sudo mkdir -p "/home/$VNC_USER/.vnc"
-    echo "$VNC_PASSWD" | sudo vncpasswd -f > "/home/$VNC_USER/.vnc/passwd"
-    sudo chmod 600 "/home/vnc/.vnc/passwd"
-    echo "geometry=1920x1200" | sudo tee "/home/$VNC_USER/.vnc/config"
+    sudo chmod 600 "/home/$VNC_USER/.vnc/passwd"
 
     # 配置 xstartup 文件
-    cat <<EOF > /home/$VNC_USER/.vnc/xstartup
-    #!/bin/sh
-    unset SESSION_MANAGER
-    unset DBUS_SESSION_BUS_ADDRESS
-    xrdb /home/vnc/.Xresources
-    startxfce4 &
-EOF
-
-    sudo chmod +x /home/$VNC_USER/.vnc/xstartup
-    sudo chown -R vnc:vnc "/home/$VNC_USER/.vnc"
-
-
-    # 设置 VNC 服务器默认分辨率
-    echo "geometry=1920x1200" > "/home/$VNC_USER/.vnc/config"
-
-    # 设置 VNC 服务器
-    vncserver -kill :1 > /dev/null 2>&1
-    vncserver
-
-    # 配置 xstartup 文件
-    cat <<EOF > /home/$VNC_USER/.vnc/xstartup
+    cat <<EOF > "/home/$VNC_USER/.vnc/xstartup"
 #!/bin/sh
-unset SESSION_MANAGER
-unset DBUS_SESSION_BUS_ADDRESS
+
 xrdb \$HOME/.Xresources
-startxfce4 &
-EOF
-    sudo chown -R vnc:vnc "/home/$VNC_USER/.vnc/xstartup"
-    # 使 xstartup 文件可执行
-    chmod a+x /home/$VNC_USER/.vnc/xstartup
+xsetroot -solid grey
+#x-terminal-emulator -geometry 80x24+10+10 -ls -title "\$VNCDESKTOP Desktop" &
+x-window-manager &
+vncconfig -iconic &
 
-    # 创建 vnc用户的vnc.sh 脚本
-    cat <<EOF > /home/$VNC_USER/vnc_start.sh
-#!/bin/bash
-vncserver -kill :1
-vncserver -geometry 1920x1200
+# Fix to make GNOME work
+export XKL_XMODMAP_DISABLE=1
+/etc/X11/Xsession
+
+startxfce4
 EOF
 
-    # 创建 vnc用户的vnc.sh 脚本
-    cat <<EOF > /root/vnc.sh
+    # 确保 xstartup 文件有可执行权限
+    sudo chmod +x "/home/$VNC_USER/.vnc/xstartup"
+    sudo chown $VNC_USER:$VNC_USER "/home/$VNC_USER/.vnc/xstartup"
+
+    # 提供分辨率选择菜单
+    echo "请选择 VNC 会话的分辨率："
+    echo "1) 1024x768"
+    echo "2) 1440x900"
+    echo "3) 1920x1080"
+    read -p "输入选项编号 [1-3]: " RESOLUTION_OPTION
+
+    case $RESOLUTION_OPTION in
+        1)
+            RESOLUTION="1024x768"
+            ;;
+        2)
+            RESOLUTION="1440x900"
+            ;;
+        3)
+            RESOLUTION="1920x1080"
+            ;;
+        *)
+            echo "无效的选项，使用默认分辨率 1920x1080。"
+            RESOLUTION="1920x1080"
+            ;;
+    esac
+
+    # 创建 VNC 用户的 vnc.sh 脚本
+    cat <<EOF > /home/$VNC_USER/vnc.sh
 #!/bin/bash
-sudo -u vnc bash /home/vnc/vnc.sh
+vncserver -kill :1 > /dev/null 2>&1
+vncserver -geometry $RESOLUTION :1
 EOF
-    # 使 vnc.sh 文件可执行
-    chmod +x /home/$VNC_USER/vnc.sh
-    chmod a+x /root/vnc.sh
-    chown -R vnc:vnc /home/$VNC_USER/
-    echo "VNC 服务器安装和配置完成。你可以运行 '/home/$VNC_USER/vnc.sh' 来启动 VNC 服务器。"
+
+    sudo chmod +x "/home/$VNC_USER/vnc.sh"
+    sudo chown $VNC_USER:$VNC_USER "/home/$VNC_USER/vnc.sh"
+
+    # 如果当前是 root 用户，创建 root 的 vnc.sh 脚本
+    if [ "$(whoami)" = "root" ]; then
+        cat <<EOF > /root/vnc.sh
+#!/bin/bash
+vncserver -kill :1 > /dev/null 2>&1
+vncserver -geometry $RESOLUTION :1
+EOF
+
+        sudo chmod +x /root/vnc.sh
+        echo "root 用户的 vnc.sh 脚本已创建。"
+    fi
+    # 将 xstartup 文件复制到 root 用户的 .vnc 目录中并设置权限
+    sudo mkdir -p /root/.vnc
+    sudo cp "/home/$VNC_USER/.vnc/xstartup" "/root/.vnc/xstartup"
+    sudo chmod +x /root/.vnc/xstartup
+    sudo chown root:root /root/.vnc/xstartup
+
+    echo "xstartup 文件已复制到 /root/.vnc 并设置权限。"
+    # 提示用户如何启动 VNC 服务器
+    echo -e "\033[32mVNC 服务器安装和配置完成。\033[0m"
+    echo -e "\033[32m您可以切换到用户 $VNC_USER，并运行 '~/vnc.sh' 来启动 VNC 服务器。\033[0m"
+    echo -e "\033[32m如果您当前是 root 用户，您也可以运行 '~/vnc.sh' 来启动 VNC 服务器。\033[0m"
 }
+
 
 configure_history_settings() {
 # 需要追加的设置
@@ -383,8 +409,12 @@ disable_and_remove_snapd() {
     echo "正在收集所有 snap 应用..."
     snap_packages=$(snap list | awk '{print $1}' | grep -v "Name" | tr '\n' ' ')
 
-    echo "正在删除 snap 应用..."
-    snap remove $snap_packages
+    if [ -n "$snap_packages" ]; then
+        echo "正在删除 snap 应用..."
+        snap remove $snap_packages
+    else
+        echo "没有发现任何 snap 应用，跳过删除步骤。"
+    fi
 
     echo "正在删除残留文件..."
     rm -rf /var/cache/snapd/
@@ -575,13 +605,38 @@ setup_machine_id() {
 install_conda_systemwide() {
     # 检查系统架构
     ARCH=$(uname -m)
+    
     if [ "$ARCH" = "x86_64" ]; then
-        CONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh"
+        if [ "$in_china" = "y" ]; then
+            CONDA_URL="https://mirrors.tuna.tsinghua.edu.cn/anaconda/miniconda/Miniconda3-latest-Linux-x86_64.sh"
+        else
+            CONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh"
+        fi
     elif [ "$ARCH" = "aarch64" ]; then
-        CONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh"
+        if [ "$in_china" = "y" ]; then
+            CONDA_URL="https://mirrors.tuna.tsinghua.edu.cn/anaconda/miniconda/Miniconda3-latest-Linux-aarch64.sh"
+        else
+            CONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh"
+        fi
     else
         echo "不支持的架构: $ARCH"
         exit 1
+    fi
+
+    # 询问用户输入安装路径
+    read -p "请输入安装路径（默认 /opt/miniconda）: " INSTALL_PATH
+    INSTALL_PATH=${INSTALL_PATH:-/opt/miniconda}
+
+    # 检查安装路径是否存在
+    if [ -d "$INSTALL_PATH" ]; then
+        read -p "路径 $INSTALL_PATH 已存在，是否删除后重新安装？(y/n): " confirm
+        confirm=${confirm,,}  # 转换为小写
+        if [ "$confirm" = "y" ]; then
+            sudo rm -rf "$INSTALL_PATH"
+        else
+            echo "安装已取消。"
+            exit 0
+        fi
     fi
 
     # 下载 Miniconda 安装脚本
@@ -589,10 +644,6 @@ install_conda_systemwide() {
 
     # 赋予安装脚本可执行权限
     chmod +x Miniconda3-latest-Linux-*.sh
-
-    # 询问用户输入安装路径
-    read -p "请输入安装路径（默认 /opt/miniconda）: " INSTALL_PATH
-    INSTALL_PATH=${INSTALL_PATH:-/opt/miniconda}
 
     # 运行安装脚本，自动同意协议并指定安装路径
     sudo ./Miniconda3-latest-Linux-*.sh -b -p "$INSTALL_PATH"
@@ -639,6 +690,76 @@ install_1panel() {
     rm -f quick_start.sh
 }
 
+disable_systemd_resolved() {
+  # 检查 Ubuntu 版本
+  UBUNTU_VERSION=$(lsb_release -rs)
+
+  if [[ "$UBUNTU_VERSION" == "24."* ]]; then
+    echo -e "\e[31m该脚本不兼容 Ubuntu 24 版本，退出。\e[0m"
+    exit 1
+  fi
+
+  # 禁用并停止 systemd-resolved 服务
+  sudo systemctl disable systemd-resolved.service
+  sudo systemctl stop systemd-resolved.service
+
+  # 删除现有的 /etc/resolv.conf 符号链接
+  if [ -L /etc/resolv.conf ]; then
+    sudo rm /etc/resolv.conf
+  fi
+
+  # 创建一个新的空的 /etc/resolv.conf 文件
+  sudo touch /etc/resolv.conf
+
+  # 列出 /etc/netplan/ 目录中的所有 .yaml 文件
+  NETPLAN_DIR="/etc/netplan"
+  NETPLAN_FILES=($(ls $NETPLAN_DIR/*.yaml))
+
+  # 如果没有找到 netplan 配置文件，退出脚本
+  if [ ${#NETPLAN_FILES[@]} -eq 0 ]; then
+    echo "未在 $NETPLAN_DIR 中找到 Netplan 配置文件。"
+    exit 1
+  fi
+
+  # 如果只有一个 netplan 配置文件，直接备份并修改
+  if [ ${#NETPLAN_FILES[@]} -eq 1 ]; then
+    NETPLAN_CONFIG="${NETPLAN_FILES[0]}"
+    echo "找到单一的 Netplan 配置文件: $NETPLAN_CONFIG"
+    echo "正在备份并修改该文件。"
+  else
+    # 如果有多个配置文件，列出文件并提示用户选择
+    echo "找到多个 Netplan 配置文件:"
+    select NETPLAN_CONFIG in "${NETPLAN_FILES[@]}"; do
+      if [ -n "$NETPLAN_CONFIG" ]; then
+        echo "你选择了: $NETPLAN_CONFIG"
+        break
+      else
+        echo "选择无效。请重试。"
+      fi
+    done
+  fi
+
+  # 备份原配置文件
+  sudo cp $NETPLAN_CONFIG ${NETPLAN_CONFIG}.bak
+
+  # 读取现有的 Netplan 配置文件，查找已配置的网卡名称
+  INTERFACES=$(awk '/ethernets:/,/^[^ ]/{ if ($1 ~ /^[^ ]/) print $1 }' $NETPLAN_CONFIG | sed 's/://g')
+
+  # 修改 Netplan 配置文件，添加 DHCP DNS 配置
+  for INTERFACE in $INTERFACES; do
+    sudo sed -i "/$INTERFACE:/,/^[^ ]/s/\(dhcp4: true\)/\1\n      dhcp4-overrides:\n        use-dns: true/" $NETPLAN_CONFIG
+  done
+
+  # 应用 Netplan 配置
+  sudo netplan apply
+
+  # 重新启动网络服务以获取新的 DHCP 配置
+  sudo dhclient -r
+  sudo dhclient
+
+  echo "配置完成。系统现在使用 DHCP 提供的 DNS 服务器。"
+}
+
 # 主菜单循环
 while true; do
     echo "选择要执行的操作 (可用逗号分隔多个选项，或输入范围如1-15):"
@@ -659,8 +780,9 @@ while true; do
     echo "15) 禁止 Ubuntu 更新内核"
     echo "16) 禁用/启用IPv6"
     echo "17) 重新生成主机的machine-id"
-    echo "18) 安装miniconda"
+    echo "18) 安装Miniconda 3"
     echo "19) 安装1panel面板"
+    echo "20) 禁用systemd-resolved，释放53端口"
     echo "q) 退出"
     read -p "请输入选项: " choice
 
@@ -713,6 +835,7 @@ while true; do
             17) setup_machine_id ;;
             18) install_conda_systemwide ;;
             19) install_1panel ;;
+            20) disable_systemd_resolved ;;
             *) echo "无效的选项: $i" ;;
         esac
     done
