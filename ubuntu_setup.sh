@@ -966,9 +966,221 @@ cleanup_docker() {
     print_separator
 }
 
+function install_package() {
+    local package_name=$1
+    local apt_name=${2:-$package_name}  # 如果没有指定apt包名，使用第一个参数
+    local yum_name=${3:-$package_name}  # 如果没有指定yum包名，使用第一个参数
+
+    if command -v apt-get &> /dev/null; then
+        sudo apt-get update
+        sudo apt-get install -y "$apt_name"
+    elif command -v yum &> /dev/null; then
+        sudo yum install -y "$yum_name"
+    else
+        echo "不支持的包管理器，请手动安装 $package_name。"
+        return 1
+    fi
+}
+
+configure_aliases_and_functions() {
+    # 定义别名和函数文件的路径
+    local ALIASES_FILE="$HOME/.bash_aliases_custom"
+    local TEMP_FILE=$(mktemp)
+    
+    # 创建临时文件
+    cat > "$TEMP_FILE" <<'EOF'
+# 包安装函数
+function install_package() {
+    local package_name=$1
+    local apt_name=${2:-$package_name}  # 如果没有指定apt包名，使用第一个参数
+    local yum_name=${3:-$package_name}  # 如果没有指定yum包名，使用第一个参数
+
+    if command -v apt-get &> /dev/null; then
+        sudo apt-get update
+        sudo apt-get install -y "$apt_name"
+    elif command -v yum &> /dev/null; then
+        sudo yum install -y "$yum_name"
+    else
+        echo "不支持的包管理器，请手动安装 $package_name。"
+        return 1
+    fi
+}
+
+# 端口检测函数
+function port() {
+    local host=$1
+    local port=$2
+
+    if [ -z "$host" ] || [ -z "$port" ]; then
+        echo "用法：port <主机> <端口>"
+        return 1
+    fi
+
+    if ! command -v nc &> /dev/null; then
+        echo "未找到 nc 命令，正在安装..."
+        install_package nc netcat nc || return 1
+    fi
+
+    if ! command -v nmap &> /dev/null; then
+        read -p "未找到 nmap 命令，是否要安装？(y/n): " install_nmap
+        if [[ "$install_nmap" =~ ^[Yy]$ ]]; then
+            install_package nmap || return 1
+        else
+            echo "继续运行，但不使用 nmap..."
+        fi
+    fi
+
+    echo "正在检查 $host 的 $port 端口..."
+
+    nc -zv -w 3 $host $port 2>&1 >/dev/null
+    nc_result=$?
+
+    if command -v nmap &> /dev/null; then
+        nmap_result=$(nmap -p $port $host 2>&1 | grep "$port" | grep -oE "(open|closed|filtered)")
+    else
+        nmap_result="nmap未安装"
+    fi
+
+    if [ "$nc_result" -eq 0 ] || [ "$nmap_result" = "open" ]; then
+        output_color="\033[0;32m"
+    else
+        output_color="\033[0;31m"
+    fi
+
+    echo -e "nc 检测结果: $([ $nc_result -eq 0 ] && echo -e "${output_color}开放\033[0m" || echo -e "${output_color}关闭\033[0m")"
+    if [ "$nmap_result" = "nmap未安装" ]; then
+        echo -e "nmap 检测结果: \033[0;33m$nmap_result\033[0m"
+    else
+        case "$nmap_result" in
+            "open") nmap_result="开放" ;;
+            "closed") nmap_result="关闭" ;;
+            "filtered") nmap_result="被过滤" ;;
+            *) nmap_result="无法访问" ;;
+        esac
+        echo -e "nmap 检测结果: ${output_color}${nmap_result}\033[0m"
+    fi
+}
+
+# Docker容器执行函数
+function dkexec() {
+    container_id=$1
+    if [ -z "$container_id" ]; then
+        echo "用法：dkexec <容器ID>"
+        return 1
+    fi
+
+    if docker exec -it $container_id /bin/bash -c 'exit' >/dev/null 2>&1; then
+        echo "正在使用 bash 进入容器 $container_id"
+        docker exec -it $container_id /bin/bash
+    elif docker exec -it $container_id /bin/sh -c 'exit' >/dev/null 2>&1; then
+        echo "正在使用 sh 进入容器 $container_id"
+        docker exec -it $container_id /bin/sh
+    else
+        echo "容器 $container_id 中既没有 bash 也没有 sh"
+    fi
+}
+
+# 历史命令查看函数
+function his() {
+    local lines=${1:-50}
+    history | tail -n $lines
+}
+
+# 文件备份函数
+function bkk() {
+    if [[ -n "$1" ]]; then
+        local current_date=$(date +%Y%m%d%H%M)
+        local backup_name="${1}.${current_date}"
+        if [ -d "$1" ]; then
+            cp -r "$1" "$backup_name"
+        elif [ -f "$1" ]; then
+            cp "$1" "$backup_name"
+        else
+            echo "错误：'$1' 不是有效的文件或目录"
+            return 1
+        fi
+        echo "已创建 '$1' 的备份：'$backup_name'"
+    else
+        echo "用法：bkk <文件名/目录>"
+    fi
+}
+
+# TCP抓包函数
+function tcpd() {
+    if [[ -z "$1" ]]; then
+        sudo tcpdump -i any -nn
+    elif [[ $1 =~ ^[0-9]+$ ]] && [ $1 -ge 0 ] && [ $1 -le 65535 ]; then
+        sudo tcpdump -i any port $1 -nn
+    else
+        echo "错误：无效的端口号。请提供 0-65535 范围内的端口号。"
+    fi
+}
+
+# Python简单HTTP服务器
+function pys() {
+    for ip in $(ip -4 a | grep inet | grep -v "127.0.0.1" | awk '{print $2}' | cut -d/ -f1); do
+        echo "http://$ip:1111"
+    done
+    if command -v python3 &> /dev/null; then
+        python3 -m http.server 1111
+    elif command -v python &> /dev/null && python -c "import sys; print(sys.version_info[0])" | grep -q "2"; then
+        python -m SimpleHTTPServer 1111
+    else
+        echo "系统中未安装 Python 2 或 Python 3"
+    fi
+}
+EOF
+
+    # 检查 .bashrc 中是否存在引用
+    if grep -q "source.*$ALIASES_FILE" ~/.bashrc; then
+        # 检查实际文件是否存在
+        if [ ! -f "$ALIASES_FILE" ]; then
+            print_info "发现 .bashrc 中的引用但配置文件不存在，将重新创建"
+            mv "$TEMP_FILE" "$ALIASES_FILE"
+            chmod 644 "$ALIASES_FILE"
+            print_success "配置文件已重新创建：$ALIASES_FILE"
+            return 0
+        else
+            # 文件存在，检查差异
+            if ! diff -q "$ALIASES_FILE" "$TEMP_FILE" >/dev/null 2>&1; then
+                print_info "发现现有配置文件与新配置存在差异"
+                read -p "是否要覆盖现有配置？(y/n): " overwrite
+                if [[ "$overwrite" =~ ^[Yy]$ ]]; then
+                    mv "$TEMP_FILE" "$ALIASES_FILE"
+                    chmod 644 "$ALIASES_FILE"
+                    print_success "配置文件已更新"
+                else
+                    rm "$TEMP_FILE"
+                    print_info "保留现有配置"
+                fi
+            else
+                rm "$TEMP_FILE"
+                print_info "配置文件内容相同，无需更新"
+            fi
+        fi
+    else
+        # .bashrc 中没有引用，这是首次安装
+        mv "$TEMP_FILE" "$ALIASES_FILE"
+        chmod 644 "$ALIASES_FILE"
+        
+        # 添加到 .bashrc
+        echo -e "\n# Load custom aliases and functions" >> ~/.bashrc
+        echo "if [ -f $ALIASES_FILE ]; then" >> ~/.bashrc
+        echo "    source $ALIASES_FILE" >> ~/.bashrc
+        echo "fi" >> ~/.bashrc
+        
+        print_separator
+        print_success "别名和函数配置完成！"
+        print_info "配置文件已创建：$ALIASES_FILE"
+        print_info "并已在 .bashrc 中添加引用"
+        print_info "请运行 'source ~/.bashrc' 或重新登录以使更改生效"
+        print_separator
+    fi
+}
+
 # 主菜单循环
 while true; do
-    echo "选择要执行的操作 (可用逗号分隔多个选项，或输入范围如1-21):"
+    echo "选择要执行的操作 (可用逗号分隔多个选项，或输入范围如1-22):"
     echo "1) 配置历史格式和终端提示符样式"
     echo "2) 将时区设置为北京时间"
     echo "3) 安装常用软件"
@@ -990,6 +1202,7 @@ while true; do
     echo "19) 安装1panel面板"
     echo "20) 禁用systemd-resolved，释放53端口"
     echo "21) 清理 Docker 资源"
+    echo "22) 配置常用别名和函数"
     echo "q) 退出"
     read -p "请输入选项: " choice
 
@@ -1000,7 +1213,7 @@ while true; do
 
     expanded_choices=()
 
-    # 检查否为范围
+    # 检查输入值为范围
     if [[ $choice =~ ^[0-9]+-[0-9]+$ ]]; then
         IFS='-' read -ra RANGE <<< "$choice"
         start=${RANGE[0]}
@@ -1044,6 +1257,7 @@ while true; do
             19) install_1panel ;;
             20) disable_systemd_resolved ;;
             21) cleanup_docker ;;
+            22) configure_aliases_and_functions ;;
             *) echo "无效的选项: $i" ;;
         esac
     done
