@@ -847,79 +847,101 @@ install_1panel() {
 }
 
 disable_systemd_resolved() {
-  # 检查 Ubuntu 版本
-  UBUNTU_VERSION=$(lsb_release -rs)
+    # 检查 Ubuntu 版本
+    UBUNTU_VERSION=$(lsb_release -rs)
 
-  if [[ "$UBUNTU_VERSION" == "24."* ]]; then
-    echo -e "\e[31m该脚本不兼容 Ubuntu 24 版本，退出。\e[0m"
-    exit 1
-  fi
+    if [[ "$UBUNTU_VERSION" == "24."* ]]; then
+        print_error "该脚本不兼容 Ubuntu 24 版本，退出。"
+        return 1
+    fi
 
-  # 禁用并停止 systemd-resolved 服务
-  sudo systemctl disable systemd-resolved.service
-  sudo systemctl stop systemd-resolved.service
+    # 禁用并停止 systemd-resolved 服务
+    sudo systemctl disable systemd-resolved.service
+    sudo systemctl stop systemd-resolved.service
 
-  # 删除现有的 /etc/resolv.conf 符号链接
-  if [ -L /etc/resolv.conf ]; then
-    sudo rm /etc/resolv.conf
-  fi
+    # 删除现有的 /etc/resolv.conf 符号链接
+    if [ -L /etc/resolv.conf ]; then
+        sudo rm /etc/resolv.conf
+    fi
 
-  # 创建一个新的空的 /etc/resolv.conf 文件
-  sudo touch /etc/resolv.conf
+    # 创建一个新的空的 /etc/resolv.conf 文件
+    sudo touch /etc/resolv.conf
 
-  # 列出 /etc/netplan/ 目录中的所有 .yaml 文件
-  NETPLAN_DIR="/etc/netplan"
-  NETPLAN_FILES=($(ls $NETPLAN_DIR/*.yaml))
+    # 列出 /etc/netplan/ 目录中的所有 .yaml 文件
+    NETPLAN_DIR="/etc/netplan"
+    NETPLAN_FILES=($(ls $NETPLAN_DIR/*.yaml))
 
-  # 如果没有找到 netplan 配置文件，退出脚本
-  if [ ${#NETPLAN_FILES[@]} -eq 0 ]; then
-    echo "未在 $NETPLAN_DIR 中找到 Netplan 配置文件。"
-    exit 1
-  fi
+    # 如果没有找到 netplan 配置文件，退出脚本
+    if [ ${#NETPLAN_FILES[@]} -eq 0 ]; then
+        print_error "未在 $NETPLAN_DIR 中找到 Netplan 配置文件。"
+        return 1
+    fi
 
-  # 如果只有一个 netplan 配置文件，直接备份并修改
-  if [ ${#NETPLAN_FILES[@]} -eq 1 ]; then
-    NETPLAN_CONFIG="${NETPLAN_FILES[0]}"
-    echo "找到单一的 Netplan 配置文件: $NETPLAN_CONFIG"
-    echo "正在备份并修改该文件。"
-  else
-    # 如果有多个配置文件，列出文件并提示用户选择
-    echo "找到多个 Netplan 配置文件:"
-    select NETPLAN_CONFIG in "${NETPLAN_FILES[@]}"; do
-      if [ -n "$NETPLAN_CONFIG" ]; then
-        echo "你选择了: $NETPLAN_CONFIG"
-        break
-      else
-        echo "选择无效。请重试。"
-      fi
-    done
-  fi
+    # 如果只有一个 netplan 配置文件，直接备份并修改
+    if [ ${#NETPLAN_FILES[@]} -eq 1 ]; then
+        NETPLAN_CONFIG="${NETPLAN_FILES[0]}"
+        echo "找到单一的 Netplan 配置文件: $NETPLAN_CONFIG"
+    else
+        # 如果有多个配置文件，列出文件并提示用户选择
+        echo "找到多个 Netplan 配置文件:"
+        select NETPLAN_CONFIG in "${NETPLAN_FILES[@]}"; do
+            if [ -n "$NETPLAN_CONFIG" ]; then
+                echo "你选择了: $NETPLAN_CONFIG"
+                break
+            else
+                echo "选择无效。请重试。"
+            fi
+        done
+    fi
 
-  # 备份原配置文件
-  sudo cp $NETPLAN_CONFIG ${NETPLAN_CONFIG}.bak
+    # 备份原配置文件
+    sudo cp "$NETPLAN_CONFIG" "${NETPLAN_CONFIG}.bak"
 
-  # 读取现有的 Netplan 配置文件，查找已配置的网卡名称
-  INTERFACES=$(awk '/ethernets:/,/^[^ ]/{ if ($1 ~ /^[^ ]/) print $1 }' $NETPLAN_CONFIG | sed 's/://g')
+    # 修改文件权限为600
+    sudo chmod 600 "$NETPLAN_CONFIG"
 
-  # 修改 Netplan 配置文件，添加 DHCP DNS 配置
-  for INTERFACE in $INTERFACES; do
-    sudo sed -i "/$INTERFACE:/,/^[^ ]/s/\(dhcp4: true\)/\1\n      dhcp4-overrides:\n        use-dns: true/" $NETPLAN_CONFIG
-  done
+    # 创建临时文件
+    TEMP_FILE=$(mktemp)
 
-  # 应用 Netplan 配置
-  sudo netplan apply
+    # 读取现有配置并保持缩进
+    while IFS= read -r line; do
+        if [[ $line =~ "dhcp4: true" ]]; then
+            echo "$line" >> "$TEMP_FILE"
+            echo "            dhcp4-overrides:" >> "$TEMP_FILE"
+            echo "                use-dns: true" >> "$TEMP_FILE"
+        else
+            echo "$line" >> "$TEMP_FILE"
+        fi
+    done < "$NETPLAN_CONFIG"
 
-  # 重新启动网络服务以获取新的 DHCP 配置
-  sudo dhclient -r
-  sudo dhclient
+    # 将修改后的配置写回原文件
+    sudo mv "$TEMP_FILE" "$NETPLAN_CONFIG"
 
-  echo "配置完成。系统现在使用 DHCP 提供的 DNS 服务器。"
+    # 确保文件权限正确
+    sudo chmod 600 "$NETPLAN_CONFIG"
+    sudo chown root:root "$NETPLAN_CONFIG"
 
-  print_separator
-  print_success "systemd-resolved 已禁用！"
-  print_info "53端口已释放"
-  print_info "DNS 设置已更新为 DHCP 模式"
-  print_separator
+    # 验证配置
+    if ! sudo netplan try; then
+        print_error "Netplan 配置验证失败，正在恢复备份..."
+        sudo mv "${NETPLAN_CONFIG}.bak" "$NETPLAN_CONFIG"
+        sudo chmod 600 "$NETPLAN_CONFIG"
+        return 1
+    fi
+
+    # 应用 Netplan 配置
+    sudo netplan apply
+
+    # 重新启动网络服务以获取新的 DHCP 配置
+    sudo systemctl restart systemd-networkd
+    sudo dhclient -r
+    sudo dhclient
+
+    print_separator
+    print_success "systemd-resolved 已禁用！"
+    print_info "53端口已释放"
+    print_info "DNS 设置已更新为 DHCP 模式"
+    print_separator
 }
 
 cleanup_docker() {
