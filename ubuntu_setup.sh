@@ -471,10 +471,15 @@ EOF
 }
 
 install_docker() {
+    # 获取最新的 Docker 版本
+    local latest_version=$(curl -s https://api.github.com/repos/moby/moby/releases/latest | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
+
     # 检查是否已经安装 Docker
     if command -v docker &>/dev/null; then
-        echo "Docker 已经安装，版本为 $(docker --version)"
-        read -p "是否卸载现有版本并安装新版本？ (y/n): " answer
+        local current_version=$(docker --version | sed -E 's/.*version ([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+        echo "当前安装的 Docker 版本为: ${current_version}"
+        echo "最新的 Docker 版本为: ${latest_version}"
+        read -p "是否卸载当前版本并安装新版本？ (y/n): " answer
         case "$answer" in
             [Yy]* )
                 sudo apt-get remove -y docker-ce docker-ce-cli containerd.io
@@ -495,6 +500,8 @@ install_docker() {
 
     # 添加 Docker 官方 GPG 密钥
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+    # 添加 Docker 的 GPG key
+    sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 7EA0A9C3F273FCD8
 
     # 添加 Docker 软件仓库
     echo \
@@ -512,7 +519,44 @@ install_docker() {
     sudo usermod -aG docker $USER
     echo "已将当前用户加入 Docker 用户组"
 
-    # 重新登录或重启
+    # 询问是否安装 Docker Compose
+    read -p "是否安装 Docker Compose？(y/n): " install_compose
+    if [[ "$install_compose" =~ ^[Yy]$ ]]; then
+        # 获取最新的 Docker Compose 版本
+        COMPOSE_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+        
+        # 检查是否已安装 Docker Compose
+        if command -v docker-compose &>/dev/null; then
+            local current_compose_version=$(docker-compose --version | sed -E 's/.*version ([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+            echo "当前安装的 Docker Compose 版本为: ${current_compose_version}"
+            echo "最新的 Docker Compose 版本为: ${COMPOSE_VERSION#v}"  # 移除版本号前的 'v'
+            read -p "是否更新到新版本？ (y/n): " update_compose
+            if [[ ! "$update_compose" =~ ^[Yy]$ ]]; then
+                echo "已取消安装"
+                return
+            fi
+        fi
+
+        # 如果在中国，使用镜像
+        if [ "$in_china" = "y" ]; then
+            COMPOSE_URL="https://ghproxy.nyxyy.org/https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)"
+        else
+            COMPOSE_URL="https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)"
+        fi
+
+        # 下载并安装 Docker Compose
+        sudo curl -L "$COMPOSE_URL" -o /usr/local/bin/docker-compose
+        sudo chmod +x /usr/local/bin/docker-compose
+
+        # 验证安装
+        if docker-compose --version >/dev/null 2>&1; then
+            echo "Docker Compose 安装成功，版本为 $(docker-compose --version)"
+        else
+            echo "Docker Compose 安装失败"
+            return 1
+        fi
+    fi
+
     echo "请重新登录或重启系统，以便使用户组更改生效"
 }
 
@@ -799,7 +843,7 @@ while true; do
 
     expanded_choices=()
 
-    # 检查是否为范围
+    # 检查否为范围
     if [[ $choice =~ ^[0-9]+-[0-9]+$ ]]; then
         IFS='-' read -ra RANGE <<< "$choice"
         start=${RANGE[0]}
