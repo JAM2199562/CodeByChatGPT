@@ -1,13 +1,50 @@
 #!/bin/bash
 
-
 # 检查操作系统是否为 Debian 或 Ubuntu
 if [[ -z "$(grep 'debian\|ubuntu' /etc/os-release)" ]]; then
     echo "此脚本只适用于 Debian 或 Ubuntu 系统。"
     exit 1
 fi
 
-# 询问用户是否在中国大陆，并在同一行接收输入
+# 获取系统架构
+# 参数: $1 - 目标程序名称 (go/gost/等)
+# 返回: 输出转换后的架构名称，如果不支持则返回1
+get_arch() {
+    local program=$1
+    local system_arch=$(uname -m)
+    local target_arch=""
+
+    case $system_arch in
+        x86_64)
+            target_arch="amd64"
+            ;;
+        aarch64)
+            target_arch="arm64"
+            ;;
+        armv7l)
+            case $program in
+                "go")
+                    target_arch="armv6l"
+                    ;;
+                "gost")
+                    target_arch="armv7"
+                    ;;
+                *)
+                    target_arch="armv7l"
+                    ;;
+            esac
+            ;;
+        *)
+            echo "不支持的架构: $system_arch" >&2
+            return 1
+            ;;
+    esac
+
+    echo "$target_arch"
+    return 0
+}
+
+# 询问用户是否在中国大陆
 read -p "您是否在中国大陆？(y/n): " in_china
 in_china=${in_china,,}  # 转换为小写
 
@@ -31,23 +68,8 @@ install_go() {
         return
     fi
 
-    # 获取操作系统架构
-    ARCH=$(uname -m)
-    case $ARCH in
-        x86_64)
-            ARCH="amd64"
-            ;;
-        aarch64)
-            ARCH="arm64"
-            ;;
-        armv7l)
-            ARCH="armv6l"
-            ;;
-        *)
-            echo "不支持的架构: $ARCH"
-            exit 1
-            ;;
-    esac
+    # 获取架构
+    ARCH=$(get_arch "go") || return 1
 
     # 获取全部 Go 版本清单
     GO_VERSIONS_JSON=$(curl -s https://golang.google.cn/dl/?mode=json)
@@ -117,23 +139,8 @@ install_gost() {
         sudo apt-get update && sudo apt-get install -y tar gzip
     fi
 
-    # 获取操作系统架构
-    ARCH=$(uname -m)
-    case $ARCH in
-        x86_64)
-            ARCH="amd64"
-            ;;
-        aarch64)
-            ARCH="arm64"
-            ;;
-        armv7l)
-            ARCH="armv7"
-            ;;
-        *)
-            echo "不支持的架构: $ARCH"
-            exit 1
-            ;;
-    esac
+    # 获取架构
+    ARCH=$(get_arch "gost") || return 1
 
     # GOST 版本和下载链接
     GOST_VERSION="3.0.0-rc10"
