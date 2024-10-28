@@ -1,5 +1,22 @@
 #!/bin/bash
 
+# 在脚本开头添加颜色定义
+print_success() {
+    echo -e "\e[1;32m✔ $1\e[0m"  # 粗体绿色
+}
+
+print_info() {
+    echo -e "\e[1;34m➜ $1\e[0m"  # 粗体蓝色
+}
+
+print_error() {
+    echo -e "\e[1;31m✘ $1\e[0m"  # 粗体红色
+}
+
+print_separator() {
+    echo -e "\e[1;35m----------------------------------------\e[0m"  # 粗体紫色分隔线
+}
+
 # 检查操作系统是否为 Debian 或 Ubuntu
 if [[ -z "$(grep 'debian\|ubuntu' /etc/os-release)" ]]; then
     echo "此脚本只适用于 Debian 或 Ubuntu 系统。"
@@ -49,6 +66,54 @@ read -p "您是否在中国大陆？(y/n): " in_china
 in_china=${in_china,,}  # 转换为小写
 
 # 功能函数
+configure_history_settings() {
+    # 配置 HISTTIMEFORMAT
+    if ! grep -q "HISTTIMEFORMAT" ~/.bashrc; then
+        echo 'export HISTTIMEFORMAT="%F %T "' >> ~/.bashrc
+    fi
+
+    # 配置 HISTSIZE 和 HISTFILESIZE
+    if ! grep -q "HISTSIZE" ~/.bashrc; then
+        echo 'export HISTSIZE=10000' >> ~/.bashrc
+        echo 'export HISTFILESIZE=20000' >> ~/.bashrc
+    fi
+
+    # 配置 PS1
+    if ! grep -q "PS1=" ~/.bashrc; then
+        echo 'export PS1="\[\e[32m\][\[\e[m\]\[\e[31m\]\u\[\e[m\]\[\e[33m\]@\[\e[m\]\[\e[32m\]\h\[\e[m\]:\[\e[36m\]\w\[\e[m\]\[\e[32m\]]\[\e[m\]\[\e[32;47m\]\\$\[\e[m\] "' >> ~/.bashrc
+    fi
+
+    # 配置命令补全
+    if ! grep -q "^# enable bash completion" ~/.bashrc; then
+        echo -e "\n# enable bash completion in interactive shells" >> ~/.bashrc
+        echo 'if ! shopt -oq posix; then' >> ~/.bashrc
+        echo '  if [ -f /usr/share/bash-completion/bash_completion ]; then' >> ~/.bashrc
+        echo '    . /usr/share/bash-completion/bash_completion' >> ~/.bashrc
+        echo '  elif [ -f /etc/bash_completion ]; then' >> ~/.bashrc
+        echo '    . /etc/bash_completion' >> ~/.bashrc
+        echo '  fi' >> ~/.bashrc
+        echo 'fi' >> ~/.bashrc
+    fi
+
+    print_separator
+    print_success "历史记录和终端提示符设置已完成！"
+    print_info "请重新登录以使设置生效"
+    print_separator
+}
+
+set_timezone_to_gmt8() {
+    # 设置时区为 Asia/Shanghai
+    sudo timedatectl set-timezone Asia/Shanghai
+    
+    # 同步硬件时钟
+    sudo hwclock --systohc
+
+    print_separator
+    print_success "时区已设置为北京时间！"
+    print_info "当前时间: $(date '+%Y-%m-%d %H:%M:%S')"
+    print_separator
+}
+
 install_common_software() {
     # 更新软件包列表
     sudo apt update
@@ -58,13 +123,21 @@ install_common_software() {
 
     # 安装 plocate 或 mlocate
     sudo apt install -y plocate || sudo apt install -y mlocate
+
+    print_separator
+    print_success "常用软件安装完成！"
+    print_info "已安装: curl vim wget nload net-tools screen git 等"
+    print_separator
 }
 
 install_go() {
     # 检查是否已经安装 Go
     if command -v go >/dev/null 2>&1; then
         INSTALLED_GO_VERSION=$(go version | awk '{print $3}')
-        echo "Go 已安装，版本为 ${INSTALLED_GO_VERSION}。跳过安装。"
+        print_separator
+        print_success "Go 已安装！"
+        print_info "当前版本: ${INSTALLED_GO_VERSION}"
+        print_separator
         return
     fi
 
@@ -113,7 +186,10 @@ install_go() {
     # 清理下载的 tar.gz 文件
     rm "${GO_VERSION}.linux-${ARCH}.tar.gz"
 
-    echo "Go ${GO_VERSION_NUMBER} 已安装。请注销并重新登录以确保 Go 在您的环境中可用。"
+    print_separator
+    print_success "Go ${GO_VERSION_NUMBER} 已安装成功！"
+    print_info "请注销并重新登录以确保 Go 在您的环境中可用"
+    print_separator
 }
 
 install_xray() {
@@ -127,6 +203,12 @@ install_xray() {
 
     # 执行安装
     eval $INSTALL_CMD
+
+    print_separator
+    print_success "Xray 安装完成！"
+    print_info "服务状态: $(systemctl is-active xray)"
+    print_info "配置文件位置: /usr/local/etc/xray/"
+    print_separator
 }
 
 install_gost() {
@@ -223,15 +305,27 @@ EOF
         echo "未检测到已启用的防火墙服务。"
     fi
 
-    echo "GOST 服务配置完成。"
-    echo "协议: socks5"
-    echo "端口: ${GOST_PORT}"
-    echo "密码: ${GOST_PASSWORD}"
-    echo "可以通过 'sudo systemctl start gost' 命令启动服务。"
+    print_separator
+    print_success "GOST 服务配置完成"
+    print_info "协议: socks5"
+    print_info "端口: ${GOST_PORT}"
+    print_info "密码: ${GOST_PASSWORD}"
+    print_info "可以通过 'sudo systemctl start gost' 命令启动服务"
+    print_separator
 }
 
 install_rust() {
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+
+  if command -v rustc >/dev/null 2>&1; then
+      print_separator
+      print_success "Rust 安装成功！"
+      print_info "版本: $(rustc --version)"
+      print_separator
+  else
+      print_error "Rust 安装失败"
+      return 1
+  fi
 }
 
 install_node_and_yarn() {
@@ -255,6 +349,12 @@ install_node_and_yarn() {
         npm install --global yarn
         echo "Yarn 安装完成。"
     fi
+
+    print_separator
+    print_success "Node.js 和 Yarn 安装完成！"
+    print_info "Node.js 版本: $(node -v)"
+    print_info "Yarn 版本: $(yarn -v)"
+    print_separator
 }
 
 install_vnc_server() {
@@ -358,51 +458,33 @@ EOF
 
     echo "xstartup 文件已复制到 /root/.vnc 并设置权限。"
     # 提示用户如何启动 VNC 服务器
-    echo -e "\033[32mVNC 服务器安装和配置完成。\033[0m"
-    echo -e "\033[32m您可以切换到用户 $VNC_USER，并运行 '~/vnc.sh' 来启动 VNC 服务器。\033[0m"
-    echo -e "\033[32m如果您当前是 root 用户，您也可以运行 '~/vnc.sh' 来启动 VNC 服务器。\033[0m"
+    print_separator
+    print_success "VNC 服务器安装和配置完成"
+    print_info "分辨率: $RESOLUTION"
+    print_info "用户: $VNC_USER"
+    print_info "启动命令: ~/vnc.sh"
+    print_separator
 }
 
+install_chrome() {
+    # 下载 Chrome 浏览器
+    curl -sSL https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -o google-chrome-stable_current_amd64.deb
 
-configure_history_settings() {
-# 需要追加的设置
-settings='
-export HISTSIZE=10000
-export HISTTIMEFORMAT="[%F %T $(whoami)] "
-export PS1="\[\e[37;40m\][\[\e[35;40m\]\u\[\e[37;40m\]@\[\e[32;40m\]\h \[\e[34;40m\]\w\[\e[0m\]]\$ "
-'
+    # 安装 Chrome 浏览器
+    sudo dpkg -i google-chrome-stable_current_amd64.deb
 
-# 追加设置到当前用户的 .bashrc 文件
-echo "$settings" >> ~/.bashrc
-echo "已添加设置到当前用户的 ~/.bashrc 文件中。"
+    # 清理下载的 deb 文件
+    rm -f google-chrome-stable_current_amd64.deb
 
-# 查找 /home 下所有用户的 .bashrc 文件并追加设置
-for dir in /home/*/; do
-    if [ -f "${dir}.bashrc" ]; then
-        echo "$settings" >> "${dir}.bashrc"
-        echo "已添加设置到 ${dir}.bashrc 文件中。"
+    if command -v google-chrome >/dev/null 2>&1; then
+        print_separator
+        print_success "Chrome 浏览器安装成功！"
+        print_info "版本: $(google-chrome --version)"
+        print_separator
+    else
+        print_error "Chrome 浏览器安装失败"
+        return 1
     fi
-done
-
-# 追加设置到 /etc/skel/.bashrc 文件
-if [ -f "/etc/skel/.bashrc" ]; then
-    echo "$settings" >> /etc/skel/.bashrc
-    echo "已添加设置到 /etc/skel/.bashrc 文件中。"
-fi
-
-echo "所有设置已更新。请退出并重新登录，或者运行 'source ~/.bashrc' 以应用更改。"
-
-}
-
-set_timezone_to_gmt8() {
-    echo "正在将时区设置为GMT+8..."
-
-    # 设置时区
-    sudo timedatectl set-timezone Asia/Shanghai  # 中国的北京时间为 GMT+8
-
-    # 显示当前时区确认更改
-    current_timezone=$(timedatectl | grep 'Time zone' | awk '{print $3}')
-    echo "当前时区已设置为: $current_timezone"
 }
 
 disable_and_remove_snapd() {
@@ -433,6 +515,10 @@ disable_and_remove_snapd() {
     apt-mark hold snapd
 
     echo "已成功禁用并移除 snapd 以及其残留文件。"
+
+    print_separator
+    print_success "Snapd 已成功禁用和移除！"
+    print_separator
 }
 
 disable_automatic_updates() {
@@ -451,6 +537,10 @@ disable_automatic_updates() {
     fi
 
     echo "Automatic updates have been disabled."
+
+    print_separator
+    print_success "Ubuntu 自动更新已禁用！"
+    print_separator
 }
 
 disable_kernel_package_installation() {
@@ -468,6 +558,10 @@ Pin: release *
 Pin-Priority: -1
 EOF
     echo "Kernel packages installation has been disabled."
+
+    print_separator
+    print_success "内核更新已禁用！"
+    print_separator
 }
 
 install_docker() {
@@ -513,7 +607,16 @@ install_docker() {
     sudo apt-get install -y docker-ce docker-ce-cli containerd.io
 
     # 验证安装
-    echo "Docker 已安装，版本为 $(docker --version)"
+    if docker --version >/dev/null 2>&1; then
+        print_separator
+        print_success "Docker 安装成功！"
+        print_info "版本: $(docker --version)"
+        print_info "请重新登录或重启系统，以便使用户组更改生效"
+        print_separator
+    else
+        print_error "Docker 安装失败"
+        return 1
+    fi
 
     # 添加当前用户到 Docker 用户组
     sudo usermod -aG docker $USER
@@ -564,9 +667,11 @@ install_chsrc() {
     echo "正在安装 chsrc..."
     curl -sSL https://chsrc.run/posix | sudo bash
     if command -v chsrc >/dev/null 2>&1; then
-        echo "chsrc 安装成功！"
+        print_separator
+        print_success "chsrc 安装成功！"
+        print_separator
     else
-        echo "chsrc 安装失败，请检查网络连接。"
+        print_error "chsrc 安装失败，请检查网络连接"
         return 1
     fi
 }
@@ -597,6 +702,11 @@ toggle_ipv6() {
     esac
 
     sudo sysctl -p
+
+    print_separator
+    print_success "IPv6 设置已更新！"
+    print_info "当前状态: $(sysctl -n net.ipv6.conf.all.disable_ipv6)"
+    print_separator
 }
 
 setup_machine_id() {
@@ -610,7 +720,7 @@ setup_machine_id() {
         sudo rm "$machine_id_file"
         echo "已删除 $machine_id_file"
     else
-        echo "$machine_id_file 不存在，无需删除"
+        echo "$machine_id_file 不存在，需删除"
     fi
 
     # 检查并去重添加 cron 任务
@@ -629,6 +739,11 @@ setup_machine_id() {
     else
         echo "已取消重启"
     fi
+
+    print_separator
+    print_success "Machine-ID 设置完成！"
+    print_info "请重启系统以生成新的 Machine-ID"
+    print_separator
 }
 
 install_conda_systemwide() {
@@ -698,6 +813,13 @@ install_conda_systemwide() {
 
     # 清理安装脚本
     rm -f Miniconda3-latest-Linux-*.sh
+
+    print_separator
+    print_success "Miniconda3 安装完成！"
+    print_info "安装路径: $INSTALL_PATH"
+    print_info "版本: $(conda --version)"
+    print_info "请重新登录以使环境变量生效"
+    print_separator
 }
 
 install_1panel() {
@@ -717,6 +839,11 @@ install_1panel() {
 
     # 删除安装脚本
     rm -f quick_start.sh
+
+    print_separator
+    print_success "1Panel 安装完成！"
+    print_info "请查看安装日志获取登录信息"
+    print_separator
 }
 
 disable_systemd_resolved() {
@@ -787,6 +914,12 @@ disable_systemd_resolved() {
   sudo dhclient
 
   echo "配置完成。系统现在使用 DHCP 提供的 DNS 服务器。"
+
+  print_separator
+  print_success "systemd-resolved 已禁用！"
+  print_info "53端口已释放"
+  print_info "DNS 设置已更新为 DHCP 模式"
+  print_separator
 }
 
 cleanup_docker() {
@@ -806,7 +939,9 @@ cleanup_docker() {
                [[ $confirm == [yY] ]] && docker system prune -a --volumes -f ;;
         esac
     done
-    echo "清理完成！"
+    print_separator
+    print_success "Docker 资源清理完成！"
+    print_separator
 }
 
 # 主菜单循环
@@ -891,4 +1026,3 @@ while true; do
         esac
     done
 done
-
