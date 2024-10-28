@@ -760,9 +760,29 @@ disable_systemd_resolved() {
   echo "配置完成。系统现在使用 DHCP 提供的 DNS 服务器。"
 }
 
+cleanup_docker() {
+    echo "Docker 清理选项:"
+    echo "1) 停止的容器"
+    echo "2) 无用的镜像"
+    echo "3) 未使用的卷"
+    echo "4) 完整清理"
+    read -p "请选择要清理的内容 (可用逗号分隔或1-3): " choice
+
+    for opt in ${choice//,/ }; do
+        case $opt in
+            1) docker container prune -f ;;
+            2) docker image prune -a -f ;;
+            3) docker volume prune -f ;;
+            4) read -p "确认完整清理？(y/n): " confirm
+               [[ $confirm == [yY] ]] && docker system prune -a --volumes -f ;;
+        esac
+    done
+    echo "清理完成！"
+}
+
 # 主菜单循环
 while true; do
-    echo "选择要执行的操作 (可用逗号分隔多个选项，或输入范围如1-15):"
+    echo "选择要执行的操作 (可用逗号分隔多个选项，或输入范围如1-21):"
     echo "1) 配置历史格式和终端提示符样式"
     echo "2) 将时区设置为北京时间"
     echo "3) 安装常用软件"
@@ -783,6 +803,7 @@ while true; do
     echo "18) 安装Miniconda 3"
     echo "19) 安装1panel面板"
     echo "20) 禁用systemd-resolved，释放53端口"
+    echo "21) 清理 Docker 资源"
     echo "q) 退出"
     read -p "请输入选项: " choice
 
@@ -836,6 +857,7 @@ while true; do
             18) install_conda_systemwide ;;
             19) install_1panel ;;
             20) disable_systemd_resolved ;;
+            21) cleanup_docker ;;
             *) echo "无效的选项: $i" ;;
         esac
     done
