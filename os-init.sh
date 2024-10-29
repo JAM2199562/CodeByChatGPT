@@ -389,22 +389,53 @@ install_golang() {
 }
 
 install_xray() {
-    # 定义安装命令
-    INSTALL_CMD="bash -c \"\$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)\" @ install"
+    # 获取最新版本号 - 直接从 GitHub API 获取
+    LATEST_VERSION=$(curl -s "https://api.github.com/repos/XTLS/Xray-core/releases/latest" | grep '"tag_name":' | cut -d'"' -f4)
 
-    # 如果在中国大陆，则使用代理连接
+    if [ -z "$LATEST_VERSION" ]; then
+        LATEST_VERSION="v24.9.30"  # 如果无法获取，使用一个已知的稳定版本
+        print_warn "无法获取最新版本信息，将使用默认版本 ${LATEST_VERSION}"
+    fi
+
+    print_info "请选择要安装的 Xray 版本："
+    echo "1) ${LATEST_VERSION} (最新版)"
+    echo "2) v1.8.24 (稳定版)"
+    read -p "请输入选项 [1-2]: " version_choice
+
+    # 根据选择构建安装命令
+    case $version_choice in
+        1)
+            INSTALL_CMD="bash -c \"\$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)\" @ install"
+            ;;
+        2)
+            INSTALL_CMD="bash -c \"\$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)\" @ install --version 1.8.24"
+            ;;
+        *)
+            print_error "无效的选项"
+            return 1
+            ;;
+    esac
+
+    # 仅在安装时使用 ghproxy
     if [ "$in_china" = "y" ]; then
-        INSTALL_CMD="bash -c \"\$(curl -L https://ghproxy.nyxyy.org/https://github.com/XTLS/Xray-install/raw/main/install-release.sh)\" @ install"
+        INSTALL_CMD=${INSTALL_CMD/github.com/ghproxy.nyxyy.org\/https:\/\/github.com}
     fi
 
     # 执行安装
     eval $INSTALL_CMD
 
-    print_separator
-    print_success "Xray 安装完成！"
-    print_info "服务状态: $(systemctl is-active xray)"
-    print_info "配置文件位置: /usr/local/etc/xray/"
-    print_separator
+    # 验证安装
+    if command -v xray >/dev/null 2>&1; then
+        print_separator
+        print_success "Xray 安装完成！"
+        print_info "版本: $(xray version)"
+        print_info "服务状态: $(service_manager status xray)"
+        print_info "配置文件位置: /usr/local/etc/xray/"
+        print_separator
+    else
+        print_error "Xray 安装失败"
+        return 1
+    fi
 }
 
 install_gost() {
@@ -713,7 +744,7 @@ EOF
     sudo chmod +x "/home/$VNC_USER/vnc.sh"
     sudo chown $VNC_USER:$VNC_USER "/home/$VNC_USER/vnc.sh"
 
-    # 如果当前是 root 用户，创建 root 的 vnc.sh 脚本
+    # 果当前是 root 用户，创建 root 的 vnc.sh 脚本
     if [ "$(whoami)" = "root" ]; then
         cat <<EOF > /root/vnc.sh
 #!/bin/bash
@@ -909,7 +940,7 @@ install_docker() {
     sudo groupadd docker 2>/dev/null || true
     sudo usermod -aG docker $USER
 
-    # 配置 Docker 镜像加速（可选，基于用户选择）
+    # 配置 Docker 镜像加速（可选，基于用��选择）
     read -p "是否配置 Docker 镜像加速？(y/n): " setup_mirror
     if [[ "$setup_mirror" =~ ^[Yy]$ ]]; then
         sudo mkdir -p /etc/docker
@@ -929,7 +960,7 @@ EOF
     print_success "Docker 安装完成！"
     print_info "版本信息：$(docker --version)"
     print_info "服务状态：$(service_manager status docker)"
-    print_info "请注销并重新登录以应用 docker 组更改"
+    print_info "请注销并重新登录以用 docker 组更改"
     print_separator
 
     # 安装 Docker Compose（可选）
@@ -1176,7 +1207,7 @@ disable_systemd_resolved() {
 
     # 如果没有找到 netplan 配置文件，退出脚本
     if [ ${#NETPLAN_FILES[@]} -eq 0 ]; then
-        print_error "未在 $NETPLAN_DIR 中找到 Netplan 配置文件。"
+        print_error "未在 $NETPLAN_DIR 中找到 Netplan 配置文件"
         return 1
     fi
 
@@ -1376,10 +1407,10 @@ function dkexec() {
         echo "正在使用 bash 进入容器 $container_id"
         docker exec -it $container_id /bin/bash
     elif docker exec -it $container_id /bin/sh -c 'exit' >/dev/null 2>&1; then
-        echo "正在使用 sh 进入容器 $container_id"
+        echo "正在用 sh 进入容器 $container_id"
         docker exec -it $container_id /bin/sh
     else
-        echo "容器 $container_id 既没有 bash 也没有 sh"
+        echo "容器 $container_id 既没有 bash 没有 sh"
     fi
 }
 
