@@ -1581,11 +1581,18 @@ function pys() {
 }
 EOF
 
-    # 检查 .bashrc 中是否存在引用
-    if grep -q "source.*$ALIASES_FILE" ~/.bashrc; then
+    # 根据发行版确定目标配置文件
+    if [ "$OS_FAMILY" = "redhat" ]; then
+        TARGET_RC_FILE="$HOME/.bash_profile"
+    else
+        TARGET_RC_FILE="$HOME/.bashrc"
+    fi
+
+    # 检查目标配置文件中是否存在引用
+    if grep -q "source.*$ALIASES_FILE" "$TARGET_RC_FILE"; then
         # 检查实际文件是否存在
         if [ ! -f "$ALIASES_FILE" ]; then
-            print_info "发现 .bashrc 中的引用但配置文件不存在，将重新创建"
+            print_info "发现 ${TARGET_RC_FILE} 中的引用但配置文件不存在，将重新创建"
             mv "$TEMP_FILE" "$ALIASES_FILE"
             chmod 644 "$ALIASES_FILE"
             print_success "配置文件已重新创建：$ALIASES_FILE"
@@ -1609,21 +1616,21 @@ EOF
             fi
         fi
     else
-        # .bashrc 中没有引用，这是首次安装
+        # 目标配置文件中没有引用，这是首次安装
         mv "$TEMP_FILE" "$ALIASES_FILE"
         chmod 644 "$ALIASES_FILE"
         
-        # 添加到 .bashrc
-        echo -e "\n# Load custom aliases and functions" >> ~/.bashrc
-        echo "if [ -f $ALIASES_FILE ]; then" >> ~/.bashrc
-        echo "    source $ALIASES_FILE" >> ~/.bashrc
-        echo "fi" >> ~/.bashrc
+        # 添加到目标配置文件
+        echo -e "\n# Load custom aliases and functions" >> "$TARGET_RC_FILE"
+        echo "if [ -f \"$ALIASES_FILE\" ]; then" >> "$TARGET_RC_FILE"
+        echo "    source \"$ALIASES_FILE\"" >> "$TARGET_RC_FILE"
+        echo "fi" >> "$TARGET_RC_FILE"
         
         print_separator
         print_success "别名和函数配置完成！"
         print_info "配置文件已创建：$ALIASES_FILE"
-        print_info "并已在 .bashrc 中添加引用"
-        print_info "请运行 'source ~/.bashrc' 或重新登录以使更改生效"
+        print_info "并已在 ${TARGET_RC_FILE} 中添加引用"
+        print_info "请运行 'source ${TARGET_RC_FILE}' 或重新登录以使更改生效"
         print_separator
     fi
 }
