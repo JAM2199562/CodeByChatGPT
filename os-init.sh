@@ -1075,73 +1075,109 @@ install_chsrc() {
 }
 
 toggle_ipv6() {
-    echo "请选择一个选项："
-    echo "1. 禁用IPv6"
-    echo "2. 启用IPv6"
-    read -p "请输入你的选择 [1 或 2]: " choice
+    print_info "当前 IPv6 状态检测中..."
+    
+    # 检查当前状态
+    current_status=$(sysctl -n net.ipv6.conf.all.disable_ipv6)
+    
+    if [ "$current_status" = "1" ]; then
+        status_text="已禁用"
+        action_text="启用"
+        new_value=0
+    else
+        status_text="已启用"
+        action_text="禁用"
+        new_value=1
+    fi
+    
+    print_info "IPv6 当前状态: $status_text"
+    read -p "是否${action_text} IPv6？(y/n): " choice
+    
+    if [[ "$choice" =~ ^[Yy]$ ]]; then
+        # 修改 sysctl 配置
+        if [ "$OS_FAMILY" = "debian" ]; then
+            # Debian/Ubuntu 系统的配置文件位置
+            config_file="/etc/sysctl.d/99-disable-ipv6.conf"
+        else
+            # RedHat 系列的配置文件位置
+            config_file="/etc/sysctl.d/99-disable-ipv6.conf"
+        fi
 
-    case $choice in
-        1)
-            echo "正在禁用IPv6..."
-            echo "net.ipv6.conf.all.disable_ipv6 = 1" | sudo tee -a /etc/sysctl.conf
-            echo "net.ipv6.conf.default.disable_ipv6 = 1" | sudo tee -a /etc/sysctl.conf
-            echo "net.ipv6.conf.lo.disable_ipv6 = 1" | sudo tee -a /etc/sysctl.conf
-            ;;
-        2)
-            echo "正在启用IPv6..."
-            sudo sed -i '/net.ipv6.conf.all.disable_ipv6/d' /etc/sysctl.conf
-            sudo sed -i '/net.ipv6.conf.default.disable_ipv6/d' /etc/sysctl.conf
-            sudo sed -i '/net.ipv6.conf.lo.disable_ipv6/d' /etc/sysctl.conf
-            ;;
-        *)
-            echo "无效的选择。请输入1或2。"
-            return 1
-            ;;
-    esac
+        # 创建或更新配置文件
+        echo "net.ipv6.conf.all.disable_ipv6 = $new_value" | sudo tee $config_file
+        echo "net.ipv6.conf.default.disable_ipv6 = $new_value" | sudo tee -a $config_file
+        echo "net.ipv6.conf.lo.disable_ipv6 = $new_value" | sudo tee -a $config_file
 
-    sudo sysctl -p
+        # 应用更改
+        sudo sysctl -p $config_file
 
-    print_separator
-    print_success "IPv6 设置已更新！"
-    print_info "当前状态: $(sysctl -n net.ipv6.conf.all.disable_ipv6)"
-    print_separator
+        # 验证更改
+        new_status=$(sysctl -n net.ipv6.conf.all.disable_ipv6)
+        if [ "$new_status" = "$new_value" ]; then
+            if [ "$new_value" = "1" ]; then
+                print_success "IPv6 已成功禁用"
+            else
+                print_success "IPv6 已成功启用"
+            fi
+            print_info "系统需要重启才能完全应用更改"
+            read -p "是否现在重启系统？(y/n): " reboot_choice
+            if [[ "$reboot_choice" =~ ^[Yy]$ ]]; then
+                sudo reboot
+            fi
+        else
+            print_error "IPv6 状态更改失败"
+        fi
+    else
+        print_info "操作已取消"
+    fi
 }
 
 setup_machine_id() {
+    # 检查是否使用 systemd
+    if ! command -v systemd-machine-id-setup &> /dev/null; then
+        print_error "此系统不支持 machine-id 设置（需要 systemd）"
+        return 1
+    fi
+
     local machine_id_file="/etc/machine-id"
-    local cron_file="/etc/crontab"
+    local dbus_machine_id_file="/var/lib/dbus/machine-id"
     local cron_task="@reboot [ -f /etc/machine-id ] || systemd-machine-id-setup"
     local temp_file=$(mktemp)
 
-    # 删除 /etc/machine-id 文件
+    print_info "开始配置 machine-id..."
+
+    # 删除 machine-id 文件
     if [ -f "$machine_id_file" ]; then
-        sudo rm "$machine_id_file"
-        echo "已删除 $machine_id_file"
-    else
-        echo "$machine_id_file 不存在，需删除"
+        sudo rm -f "$machine_id_file"
+        print_success "已删除 $machine_id_file"
     fi
 
-    # 检查并去重添加 cron 任务
-    sudo crontab -l | grep -v "$cron_task" > "$temp_file"
-    echo "$cron_task" >> "$temp_file"
-    sudo crontab "$temp_file"
-    rm "$temp_file"
-    echo "已添加 cron 任务到 crontab"
+    # 处理 D-Bus machine-id
+    if [ -f "$dbus_machine_id_file" ]; then
+        sudo rm -f "$dbus_machine_id_file"
+        print_success "已删除 $dbus_machine_id_file"
+    fi
 
-    # 询问是重启
-    echo -e "\e[31m是否要立即重启？(y/n):\e[0m"
-    read -p "" answer
-    if [[ "$answer" =~ ^[Yy]$ ]]; then
-        echo "正在重启..."
+    # 检查并添加 cron 任务
+    if ! sudo crontab -l 2>/dev/null | grep -q "$cron_task"; then
+        (sudo crontab -l 2>/dev/null; echo "$cron_task") | sudo crontab -
+        print_success "已添加开机自动生成 machine-id 的 cron 任务"
+    else
+        print_info "开机自动生成 machine-id 的 cron 任务已存在"
+    fi
+
+    print_separator
+    print_success "Machine-ID 配置完成！"
+    print_info "系统需要重启才能生成新的 Machine-ID"
+    read -p "是否现在重启系统？(y/n): " reboot_choice
+    
+    if [[ "$reboot_choice" =~ ^[Yy]$ ]]; then
+        print_info "系统将在 3 秒后重启..."
+        sleep 3
         sudo reboot
     else
-        echo "已取消重启"
+        print_info "请记得稍后重启系统以生成新的 Machine-ID"
     fi
-
-    print_separator
-    print_success "Machine-ID 设置完成！"
-    print_info "请重启系统以生成新的 Machine-ID"
-    print_separator
 }
 
 install_conda_systemwide() {
