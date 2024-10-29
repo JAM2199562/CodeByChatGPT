@@ -525,17 +525,41 @@ EOF
 }
 
 install_rust() {
-  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+    if [ "$in_china" = "y" ]; then
+        export RUSTUP_DIST_SERVER=https://mirrors.ustc.edu.cn/rust-static
+        export RUSTUP_UPDATE_ROOT=https://mirrors.ustc.edu.cn/rust-static/rustup
+    fi
 
-  if command -v rustc >/dev/null 2>&1; then
-      print_separator
-      print_success "Rust 安装成功！"
-      print_info "版本: $(rustc --version)"
-      print_separator
-  else
-      print_error "Rust 安装失败"
-      return 1
-  fi
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+
+    # 加载 Rust 环境变量
+    . "$HOME/.cargo/env"
+
+    # 如果在中国，配置 USTC 镜像
+    if [ "$in_china" = "y" ]; then
+        mkdir -p ~/.cargo
+        cat > ~/.cargo/config.toml <<EOF
+[source]
+ustc = { registry = "git://mirrors.ustc.edu.cn/crates.io-index" }
+[registry]
+default = "ustc"
+EOF
+    fi
+
+    # 验证安装
+    if command -v cargo >/dev/null 2>&1; then
+        print_separator
+        print_success "Rust 安装成功！"
+        print_info "Cargo 版本: $(cargo --version)"
+        print_info "Rustc 版本: $(rustc --version)"
+        if [ "$in_china" = "y" ]; then
+            print_info "已配置中科大(USTC)镜像源"
+        fi
+        print_separator
+    else
+        print_error "Rust 安装失败"
+        return 1
+    fi
 }
 
 install_node_and_yarn() {
@@ -957,7 +981,7 @@ install_chsrc() {
 
 toggle_ipv6() {
     echo "请选择一个选项："
-    echo "1. 用IPv6"
+    echo "1. 禁用IPv6"
     echo "2. 启用IPv6"
     read -p "请输入你的选择 [1 或 2]: " choice
 
@@ -1467,7 +1491,7 @@ while true; do
     echo "5) 安装 Golang"
     echo "6) 安装 Node.js 和 Yarn"
     echo "7) 安装 Docker"
-    echo "8) 安装 Rust"
+    echo "8) 安装 Rust(cargo)"
     echo "9) 安装 Xray"
     echo "10) 安装 Gost"
     echo "11) 安装 VNC 服务器"
