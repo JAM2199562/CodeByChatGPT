@@ -408,39 +408,56 @@ install_xray() {
 }
 
 install_gost() {
-    # 检查并安装 curl、tar 和 gzip
-    if ! command -v curl &> /dev/null; then
-        sudo apt-get update && sudo apt-get install -y curl screen telnet
-    fi
+    print_info "开始安装 GOST..."
 
-    if ! command -v tar &> /dev/null || ! command -v gzip &> /dev/null; then
-        sudo apt-get update && sudo apt-get install -y tar gzip
-    fi
+    # 安装必要的依赖
+    case $OS_FAMILY in
+        debian)
+            install_package "curl"
+            install_package "tar"
+            install_package "gzip"
+            install_package "screen"
+            install_package "telnet"
+            ;;
+        redhat)
+            install_package "curl"
+            install_package "tar"
+            install_package "gzip"
+            install_package "screen"
+            install_package "telnet"
+            ;;
+        *)
+            print_error "不支持的操作系统族: $OS_FAMILY"
+            return 1
+            ;;
+    esac
 
     # 获取架构
     ARCH=$(get_arch "gost") || return 1
 
     # GOST 版本和下载链接
     GOST_VERSION="3.0.0-rc10"
-    DOWNLOAD_URL="https://github.com/go-gost/gost/releases/download/v${GOST_VERSION}/gost_${GOST_VERSION}_linux_${ARCH}.tar.gz"
-
-    # 如果在中国大陆，修改下载链接
+    
+    # 根据地区选择下载源
     if [ "$in_china" = "y" ]; then
-        DOWNLOAD_URL="https://ghproxy.nyxyy.org/${DOWNLOAD_URL}"
+        DOWNLOAD_BASE="https://ghproxy.nyxyy.org/https://github.com"
+    else
+        DOWNLOAD_BASE="https://github.com"
     fi
+    
+    DOWNLOAD_URL="${DOWNLOAD_BASE}/go-gost/gost/releases/download/v${GOST_VERSION}/gost_${GOST_VERSION}_linux_${ARCH}.tar.gz"
 
-    # 下载 GOST
-    curl -L "$DOWNLOAD_URL" -o gost.tar.gz
-    if [ ! -f gost.tar.gz ]; then
-        echo "下载 GOST 失败"
-        exit 1
+    print_info "正在下载 GOST..."
+    if ! curl -L "$DOWNLOAD_URL" -o gost.tar.gz; then
+        print_error "下载 GOST 失败"
+        return 1
     fi
 
     # 解压 GOST
-    tar -xzf gost.tar.gz
-    if [ ! -f gost ]; then
-        echo "解压 GOST 失败"
-        exit 1
+    if ! tar -xzf gost.tar.gz; then
+        print_error "解压 GOST 失败"
+        rm -f gost.tar.gz
+        return 1
     fi
 
     # 赋予执行权限
@@ -456,7 +473,7 @@ install_gost() {
     read -p "请输入要开启的端口: " GOST_PORT
     read -p "请输入要设置的密码: " GOST_PASSWORD
 
-    # 创建 /opt/gost.sh 并添加确的 shebang
+    # 创建 /opt/gost.sh 并添加正确的 shebang
     cat <<EOF | sudo tee /opt/gost.sh > /dev/null
 #!/bin/bash
 gost -L="socks5://gost:${GOST_PASSWORD}@:${GOST_PORT}"
@@ -465,9 +482,8 @@ EOF
     # 赋予 /opt/gost.sh 可执行权限
     sudo chmod +x /opt/gost.sh
 
-    # 创建 GOST 服务
-    SERVICE_FILE="/etc/systemd/system/gost.service"
-    sudo tee $SERVICE_FILE > /dev/null <<EOF
+    # 创建 systemd 服务
+    cat <<EOF | sudo tee /etc/systemd/system/gost.service > /dev/null
 [Unit]
 Description=GOST Service
 After=network.target
@@ -483,22 +499,20 @@ EOF
     # 重新加载 systemd 管理器配置
     sudo systemctl daemon-reload
 
-    # 启用 GOST 服务（但不启动）
+    # 启用 GOST 服务
     sudo systemctl enable gost.service
 
     # 检查防火墙状态并添加规则
-    if sudo systemctl is-active --quiet ufw; then
-        echo "检测到 ufw 防火墙启动，添加 GOST 规则..."
+    if command -v ufw >/dev/null 2>&1 && sudo systemctl is-active --quiet ufw; then
+        print_info "检测到 ufw 防火墙，添加端口规则..."
         sudo ufw allow ${GOST_PORT}/tcp
         sudo ufw reload
-        echo "GOST 规则已添加到 ufw 防火墙。"
-    elif sudo systemctl is-active --quiet firewalld; then
-        echo "检测到 firewalld 防火墙启动，添加 GOST 规则..."
+    elif command -v firewall-cmd >/dev/null 2>&1 && sudo systemctl is-active --quiet firewalld; then
+        print_info "检测到 firewalld 防火墙，添加端口规则..."
         sudo firewall-cmd --permanent --add-port=${GOST_PORT}/tcp
         sudo firewall-cmd --reload
-        echo "GOST 规则已添加到 firewalld 防火墙。"
     else
-        echo "未检测到已启用的防火墙服务。"
+        print_info "未检测到活动的防火墙服务"
     fi
 
     print_separator
@@ -1478,7 +1492,7 @@ while true; do
 
     expanded_choices=()
 
-    # 检查输入值为范围
+    # 检查输入值为围
     if [[ $choice =~ ^[0-9]+-[0-9]+$ ]]; then
         IFS='-' read -ra RANGE <<< "$choice"
         start=${RANGE[0]}
