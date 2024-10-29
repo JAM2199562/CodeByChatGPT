@@ -833,6 +833,14 @@ install_chrome() {
 }
 
 disable_and_remove_snapd() {
+    # 检查是否为 Ubuntu
+    if [ "$OS_NAME" != "ubuntu" ]; then
+        print_separator
+        print_error "此功能仅支持 Ubuntu 系统"
+        print_separator
+        return 1
+    fi
+
     echo "正在禁用 snapd 服务..."
 
     systemctl stop snapd.service
@@ -867,6 +875,14 @@ disable_and_remove_snapd() {
 }
 
 disable_automatic_updates() {
+    # 检查是否为 Ubuntu
+    if [ "$OS_NAME" != "ubuntu" ]; then
+        print_separator
+        print_error "此功能仅支持 Ubuntu 系统"
+        print_separator
+        return 1
+    fi
+
     CONFIG_FILE="/etc/apt/apt.conf.d/10periodic"
 
     # 检查件是否存在，如果不存在则创建
@@ -889,6 +905,14 @@ disable_automatic_updates() {
 }
 
 disable_kernel_package_installation() {
+    # 检查是否为 Ubuntu
+    if [ "$OS_NAME" != "ubuntu" ]; then
+        print_separator
+        print_error "此功能仅支持 Ubuntu 系统"
+        print_separator
+        return 1
+    fi
+
     cat <<EOF | sudo tee /etc/apt/preferences.d/disable-kernel-packages >/dev/null
 Package: linux-image*
 Pin: release *
@@ -1568,8 +1592,8 @@ while true; do
     echo "11) 安装 VNC 服务器"
     echo "12) 安装 Chrome 浏览器"
     echo "13) 禁用并移除 Snapd (仅 Ubuntu)"
-    echo "14) 禁止系统自动更新"
-    echo "15) 禁止系统更新内核"
+    echo "14) 禁止系统自动更新 (仅 Ubuntu)"
+    echo "15) 禁止系统更新内核 (仅 Ubuntu)"
     echo "16) 禁用/启用IPv6"
     echo "17) 重新生成主机的machine-id"
     echo "18) 安装Miniconda 3"
