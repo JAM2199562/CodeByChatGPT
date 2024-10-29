@@ -1257,27 +1257,43 @@ install_conda_systemwide() {
 }
 
 install_1panel() {
-    # 下载安装脚本
-    curl -sSL https://resource.fit2cloud.com/1panel/package/quick_start.sh -o quick_start.sh
-
-    # 执行安装脚本
-    sudo bash quick_start.sh
-
-    # 检查安装是否成功
-    if [ $? -eq 0 ]; then
-        echo "1Panel 安装成功。"
-    else
-        echo "1Panel 安装失败，请检查错误信息。"
-        exit 1
+    print_info "开始安装 1Panel..."
+    
+    # 检查是否已安装
+    if systemctl is-active 1panel &>/dev/null; then
+        print_error "1Panel 已经安装并正在运行"
+        return 1
     fi
 
-    # 删除安装脚本
-    rm -f quick_start.sh
+    # 下载安装脚本
+    print_info "正在下载安装脚本..."
+    if ! curl -sSL https://resource.fit2cloud.com/1panel/package/quick_start.sh -o quick_start.sh; then
+        print_error "下载安装脚本失败"
+        return 1
+    fi
 
-    print_separator
-    print_success "1Panel 安装完成！"
-    print_info "请查看安装日志获取登录信息"
-    print_separator
+    # 检查脚本是否下载成功
+    if [ ! -f quick_start.sh ]; then
+        print_error "安装脚本下载不完整"
+        return 1
+    fi
+
+    # 执行安装脚本
+    print_info "正在安装 1Panel..."
+    if sudo bash quick_start.sh; then
+        print_separator
+        print_success "1Panel 安装成功！"
+        print_info "请查看上方输出获取管理员密码和访问地址"
+        print_separator
+    else
+        print_error "1Panel 安装失败，请检查错误信息"
+        rm -f quick_start.sh
+        return 1
+    fi
+
+    # 清理安装脚本
+    rm -f quick_start.sh
+    return 0
 }
 
 disable_systemd_resolved() {
