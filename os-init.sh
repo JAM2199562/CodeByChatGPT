@@ -648,7 +648,7 @@ install_node_and_yarn() {
                 install_package "yarn"
                 ;;
             *)
-                print_error "不支持操作系统族: $OS_FAMILY"
+                print_error "不支持操作系统家族: $OS_FAMILY"
                 return 1
                 ;;
         esac
@@ -789,6 +789,29 @@ EOF
 }
 
 install_chrome() {
+    # 检查操作系统类型
+    if [ "$OS_FAMILY" = "redhat" ]; then
+        print_separator
+        print_error "Chrome 浏览器安装脚本暂不支持 RedHat 系列系统"
+        print_info "请参考以下步骤手动安装："
+        print_info "1. 添加 Chrome 仓库："
+        print_info "   sudo dnf config-manager --set-enabled google-chrome"
+        print_info "   或手动创建文件："
+        print_info "   sudo tee /etc/yum.repos.d/google-chrome.repo << EOF"
+        print_info "   [google-chrome]"
+        print_info "   name=google-chrome"
+        print_info "   baseurl=http://dl.google.com/linux/chrome/rpm/stable/\$basearch"
+        print_info "   enabled=1"
+        print_info "   gpgcheck=1"
+        print_info "   gpgkey=https://dl.google.com/linux/linux_signing_key.pub"
+        print_info "   EOF"
+        print_info "2. 安装 Chrome 浏览器："
+        print_info "   sudo dnf install google-chrome-stable"
+        print_separator
+        return 1
+    fi
+
+    # 原有的 Debian/Ubuntu 安装逻辑保持不变
     # 下载 Chrome 浏览器
     curl -sSL https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -o google-chrome-stable_current_amd64.deb
 
