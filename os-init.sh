@@ -389,8 +389,8 @@ install_golang() {
 }
 
 install_xray() {
-    # 获取最新版本号 - 直接从 GitHub API 获取
-    LATEST_VERSION=$(curl -s "https://api.github.com/repos/XTLS/Xray-core/releases/latest" | grep '"tag_name":' | cut -d'"' -f4)
+    # 获取最新版本号 - 直接获取 tag_name
+    LATEST_VERSION=$(curl -s "https://api.github.com/repos/XTLS/Xray-core/releases/latest" | grep -o '"tag_name": *"[^"]*"' | cut -d'"' -f4)
 
     if [ -z "$LATEST_VERSION" ]; then
         LATEST_VERSION="v24.9.30"  # 如果无法获取，使用一个已知的稳定版本
@@ -663,6 +663,23 @@ install_node_and_yarn() {
 }
 
 install_vnc_server() {
+    # 检查操作系统类型
+    if [ "$OS_FAMILY" = "redhat" ]; then
+        print_separator
+        print_error "VNC 服务器安装脚本暂不支持 RedHat 系列系统"
+        print_info "请参考以下步骤手动安装："
+        print_info "1. 安装 XFCE 桌面环境："
+        print_info "   sudo dnf groupinstall 'Xfce Desktop'"
+        print_info "2. 安装 TigerVNC 服务器："
+        print_info "   sudo dnf install tigervnc-server"
+        print_info "3. 配置 VNC 服务："
+        print_info "   vncserver :1"
+        print_info "4. 编辑 ~/.vnc/xstartup 文件配置桌面环境"
+        print_separator
+        return 1
+    fi
+
+    # 原有的 Debian/Ubuntu 安装逻辑保持不变
     # 指定 VNC 用户的用户名
     VNC_USER="vnc"
 
@@ -940,7 +957,7 @@ install_docker() {
     sudo groupadd docker 2>/dev/null || true
     sudo usermod -aG docker $USER
 
-    # 配置 Docker 镜像加速（可选，基于用��选择）
+    # 配置 Docker 镜像加速（可选，基于用户选择）
     read -p "是否配置 Docker 镜像加速？(y/n): " setup_mirror
     if [[ "$setup_mirror" =~ ^[Yy]$ ]]; then
         sudo mkdir -p /etc/docker
