@@ -9,6 +9,9 @@ print_info() {
     echo -e "\e[1;34m➜ $1\e[0m"  # 粗体蓝色
 }
 
+print_warn() {
+    echo -e "\e[1;33m⚠ $1\e[0m"  # 粗体黄色
+}
 print_error() {
     echo -e "\e[1;31m✘ $1\e[0m"  # 粗体红色
 }
@@ -935,8 +938,10 @@ install_docker() {
 
     # 检查是否已安装
     if command -v docker &> /dev/null; then
+        print_separator
         print_success "Docker 已安装！"
         print_info "版本信息：$(docker --version)"
+        print_separator
         return 0
     fi
 
