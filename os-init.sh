@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# 在脚本开头添加颜色定义
+# 通用工具函数
 print_success() {
     echo -e "\e[1;32m✔ $1\e[0m"  # 粗体绿色
 }
@@ -12,6 +12,7 @@ print_info() {
 print_warn() {
     echo -e "\e[1;33m⚠ $1\e[0m"  # 粗体黄色
 }
+
 print_error() {
     echo -e "\e[1;31m✘ $1\e[0m"  # 粗体红色
 }
@@ -133,6 +134,48 @@ detect_os() {
     fi
 }
 
+get_arch() {
+    local program=$1
+    local arch=$(uname -m)
+    
+    case $arch in
+        x86_64)
+            if [ "$program" = "gost" ]; then
+                echo "amd64"
+            else
+                echo "amd64"
+            fi
+            ;;
+        aarch64)
+            if [ "$program" = "gost" ]; then
+                echo "arm64"
+            else
+                echo "arm64"
+            fi
+            ;;
+        *)
+            print_error "不支持的架构: $arch"
+            return 1
+            ;;
+    esac
+}
+
+function install_package() {
+    local package_name=$1
+    local apt_name=${2:-$package_name}  # 如果没有指定apt包名，使用第一个参数
+    local yum_name=${3:-$package_name}  # 如果没有指定yum包名，使用第一个参数
+
+    if command -v apt-get &> /dev/null; then
+        sudo apt-get update
+        sudo apt-get install -y "$apt_name"
+    elif command -v yum &> /dev/null; then
+        sudo yum install -y "$yum_name"
+    else
+        echo "不支持的包管理器，请手动安装 $package_name。"
+        return 1
+    fi
+}
+
 # 在脚本开始时立即检测系统
 detect_os
 
@@ -140,7 +183,8 @@ detect_os
 read -p "您是否在中国大陆？(y/n): " in_china
 in_china=${in_china,,}  # 转换为小写
 
-# 功能函数
+# 按菜单顺序排列的功能函数
+# 1) 配置历史格式和终端提示符样式
 configure_history_settings() {
     # 配置 HISTTIMEFORMAT
     if ! grep -q "HISTTIMEFORMAT" ~/.bashrc; then
@@ -176,6 +220,7 @@ configure_history_settings() {
     print_separator
 }
 
+# 2) 将时区设置为北京时间
 set_timezone_to_gmt8() {
     # 设置时区为 Asia/Shanghai
     sudo timedatectl set-timezone Asia/Shanghai
@@ -189,7 +234,7 @@ set_timezone_to_gmt8() {
     print_separator
 }
 
-# 常用软件安装函数
+# 3) 安装常用软件
 install_common_software() {
     print_info "开始安装常用软件..."
     print_separator
@@ -281,32 +326,21 @@ install_common_software() {
     print_separator
 }
 
-get_arch() {
-    local program=$1
-    local arch=$(uname -m)
-    
-    case $arch in
-        x86_64)
-            if [ "$program" = "gost" ]; then
-                echo "amd64"
-            else
-                echo "amd64"
-            fi
-            ;;
-        aarch64)
-            if [ "$program" = "gost" ]; then
-                echo "arm64"
-            else
-                echo "arm64"
-            fi
-            ;;
-        *)
-            print_error "不支持的架构: $arch"
-            return 1
-            ;;
-    esac
+# 4) 安装 chsrc 命令行换源工具
+install_chsrc() {
+    echo "正在安装 chsrc..."
+    curl -sSL https://chsrc.run/posix | sudo bash
+    if command -v chsrc >/dev/null 2>&1; then
+        print_separator
+        print_success "chsrc 安装成功！"
+        print_separator
+    else
+        print_error "chsrc 安装失败，请检查网络连接"
+        return 1
+    fi
 }
 
+# 5) 安装 Golang
 install_golang() {
     # 检查是否已经安装 Go
     if command -v go >/dev/null 2>&1; then
@@ -391,6 +425,250 @@ install_golang() {
     print_separator
 }
 
+# 6) 安装 Node.js 和 Yarn
+install_node_and_yarn() {
+    # 检查 RHEL/CentOS 7.x 的情况
+    if [ "$OS_FAMILY" = "redhat" ] && [[ "${VERSION_ID%%.*}" -eq 7 ]]; then
+        print_separator
+        print_error "Node.js LTS (v20) 不支持 RHEL/CentOS 7.x"
+        print_info "请考虑使用其他方式安装 Node.js，或升级系统版本"
+        print_separator
+        return 1
+    fi
+
+    # 检查是否已经安装 Node.js
+    if command -v node >/dev/null 2>&1; then
+        INSTALLED_NODE_VERSION=$(node -v)
+        print_info "Node.js 已安装，版本为 ${INSTALLED_NODE_VERSION}。跳过安装。"
+    else
+        # 安装 Node.js
+        print_info "正在安装 Node.js..."
+        case $OS_FAMILY in
+            debian)
+                # 添加 NodeSource 仓库
+                curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+                install_package "nodejs"
+                ;;
+            redhat)
+                # 添加 NodeSource 仓库
+                curl -fsSL https://rpm.nodesource.com/setup_lts.x | sudo bash -
+                install_package "nodejs"
+                ;;
+            *)
+                print_error "不支持的操作系统族: $OS_FAMILY"
+                return 1
+                ;;
+        esac
+        print_success "Node.js 安装完成。"
+    fi
+
+    # 检查是否已经安装 Yarn
+    if command -v yarn >/dev/null 2>&1; then
+        INSTALLED_YARN_VERSION=$(yarn -v)
+        print_info "Yarn 已安装，版本为 ${INSTALLED_YARN_VERSION}。跳过安装。"
+    else
+        # 安装 Yarn
+        print_info "正在安装 Yarn..."
+        case $OS_FAMILY in
+            debian)
+                curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | sudo apt-key add -
+                echo "deb https://dl.yarnpkg.com/debian/ stable main" | sudo tee /etc/apt/sources.list.d/yarn.list
+                sudo apt-get update
+                install_package "yarn"
+                ;;
+            redhat)
+                curl -sL https://dl.yarnpkg.com/rpm/yarn.repo | sudo tee /etc/yum.repos.d/yarn.repo
+                install_package "yarn"
+                ;;
+            *)
+                print_error "不支持操作系统家族: $OS_FAMILY"
+                return 1
+                ;;
+        esac
+        print_success "Yarn 安装完成。"
+    fi
+
+    print_separator
+    print_success "Node.js 和 Yarn 安装完成！"
+    print_info "Node.js 版本: $(node -v)"
+    print_info "Yarn 版本: $(yarn -v)"
+    print_separator
+}
+
+# 7) 安装 Docker
+install_docker() {
+    print_info "开始安装 Docker..."
+
+    # 检查是否已安装
+    if command -v docker &> /dev/null; then
+        print_separator
+        print_success "Docker 已安装！"
+        print_info "版本信息：$(docker --version)"
+        print_separator
+        return 0
+    fi
+
+    # 安装必要的依赖
+    case $OS_FAMILY in
+        debian)
+            # 安装依赖包
+            local deps=(
+                "apt-transport-https"
+                "ca-certificates"
+                "curl"
+                "gnupg"
+                "lsb-release"
+                "software-properties-common"
+            )
+            
+            for dep in "${deps[@]}"; do
+                install_package "$dep"
+            done
+
+            # 添加 Docker 的官方 GPG 密钥
+            curl -fsSL https://download.docker.com/linux/$OS_NAME/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+
+            # 添加 Docker 仓库
+            echo \
+                "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/$OS_NAME \
+                $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+            # 安装 Docker
+            sudo apt-get update
+            install_package "docker-ce"
+            install_package "docker-ce-cli"
+            install_package "containerd.io"
+            ;;
+
+        redhat)
+            # 检查并安装 yum-utils
+            if ! command -v yum-config-manager &> /dev/null; then
+                print_info "正在安装必要的依赖包 yum-utils..."
+                install_package "yum-utils" || return 1
+            fi
+
+            # 添加 Docker 仓库
+            if [ "$OS_NAME" = "centos" ]; then
+                sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+            else
+                # 对于 Rocky Linux 和 AlmaLinux，使用 CentOS 的仓库
+                sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+                # 替换仓库 URL 中的 centos 为实际的系统
+                sudo sed -i 's/centos/rhel/g' /etc/yum.repos.d/docker-ce.repo
+            fi
+
+            # 安装 Docker
+            install_package "docker-ce"
+            install_package "docker-ce-cli"
+            install_package "containerd.io"
+            ;;
+    esac
+
+    # 启动 Docker 服务
+    service_manager start docker
+    service_manager enable docker
+
+    # 创建 docker 组并添加当前用户
+    sudo groupadd docker 2>/dev/null || true
+    sudo usermod -aG docker $USER
+
+    # 配置 Docker 镜像加速（可选，基于用户选择）
+    # read -p "是否配置 Docker 镜像加速？(y/n): " setup_mirror
+    if [[ "$setup_mirror" =~ ^[Yy]$ ]]; then
+        sudo mkdir -p /etc/docker
+        sudo tee /etc/docker/daemon.json > /dev/null <<EOF
+{
+    "registry-mirrors": [
+        "https://mirror.ccs.tencentyun.com",
+        "https://hub-mirror.c.163.com",
+        "https://mirror.baidubce.com"
+    ]
+}
+EOF
+        service_manager restart docker
+    fi
+
+    print_separator
+    print_success "Docker 安装完成！"
+    print_info "版本信息：$(docker --version)"
+    print_info "服务状态：$(service_manager status docker)"
+    print_info "请注销并重新登录以用 docker 组更改"
+    print_separator
+
+    # 安装 Docker Compose（可选）
+    read -p "是否安装 Docker Compose？(y/n): " install_compose
+    if [[ "$install_compose" =~ ^[Yy]$ ]]; then
+        install_docker_compose
+    fi
+}
+
+# Docker Compose 安装函数
+install_docker_compose() {
+    print_info "开始安装 Docker Compose..."
+
+    # 检查是否已安装
+    if command -v docker-compose &> /dev/null; then
+        print_success "Docker Compose 已安装！"
+        print_info "版本信息：$(docker-compose --version)"
+        return 0
+    fi
+
+    # 获取最新版本号
+    local latest_version=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+    
+    # 下载并安装 Docker Compose
+    sudo curl -L "https://github.com/docker/compose/releases/download/${latest_version}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    sudo chmod +x /usr/local/bin/docker-compose
+
+    # 创建软链接
+    sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
+
+    print_separator
+    print_success "Docker Compose 安装完成！"
+    print_info "版本信息：$(docker-compose --version)"
+    print_separator
+}
+
+# 8) 安装 Rust(cargo)
+install_rust() {
+    if [ "$in_china" = "y" ]; then
+        export RUSTUP_DIST_SERVER=https://mirrors.ustc.edu.cn/rust-static
+        export RUSTUP_UPDATE_ROOT=https://mirrors.ustc.edu.cn/rust-static/rustup
+    fi
+
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+
+    # 加载 Rust 环境变量
+    . "$HOME/.cargo/env"
+
+    # 如果在中国，配置 USTC 镜像
+    if [ "$in_china" = "y" ]; then
+        mkdir -p ~/.cargo
+        cat > ~/.cargo/config.toml <<EOF
+[source]
+ustc = { registry = "git://mirrors.ustc.edu.cn/crates.io-index" }
+[registry]
+default = "ustc"
+EOF
+    fi
+
+    # 验证安装
+    if command -v cargo >/dev/null 2>&1; then
+        print_separator
+        print_success "Rust 安装成功！"
+        print_info "Cargo 版本: $(cargo --version)"
+        print_info "Rustc 版本: $(rustc --version)"
+        if [ "$in_china" = "y" ]; then
+            print_info "已配置中科大(USTC)镜像源"
+        fi
+        print_separator
+    else
+        print_error "Rust 安装失败"
+        return 1
+    fi
+}
+
+# 9) 安装 Xray
 install_xray() {
     # 获取最新版本号 - 直接获取 tag_name
     LATEST_VERSION=$(curl -s "https://api.github.com/repos/XTLS/Xray-core/releases/latest" | grep -o '"tag_name": *"[^"]*"' | cut -d'"' -f4)
@@ -441,6 +719,7 @@ install_xray() {
     fi
 }
 
+# 10) 安装 Gost
 install_gost() {
     print_info "开始安装 GOST..."
 
@@ -558,113 +837,7 @@ EOF
     print_separator
 }
 
-install_rust() {
-    if [ "$in_china" = "y" ]; then
-        export RUSTUP_DIST_SERVER=https://mirrors.ustc.edu.cn/rust-static
-        export RUSTUP_UPDATE_ROOT=https://mirrors.ustc.edu.cn/rust-static/rustup
-    fi
-
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-
-    # 加载 Rust 环境变量
-    . "$HOME/.cargo/env"
-
-    # 如果在中国，配置 USTC 镜像
-    if [ "$in_china" = "y" ]; then
-        mkdir -p ~/.cargo
-        cat > ~/.cargo/config.toml <<EOF
-[source]
-ustc = { registry = "git://mirrors.ustc.edu.cn/crates.io-index" }
-[registry]
-default = "ustc"
-EOF
-    fi
-
-    # 验证安装
-    if command -v cargo >/dev/null 2>&1; then
-        print_separator
-        print_success "Rust 安装成功！"
-        print_info "Cargo 版本: $(cargo --version)"
-        print_info "Rustc 版本: $(rustc --version)"
-        if [ "$in_china" = "y" ]; then
-            print_info "已配置中科大(USTC)镜像源"
-        fi
-        print_separator
-    else
-        print_error "Rust 安装失败"
-        return 1
-    fi
-}
-
-install_node_and_yarn() {
-    # 检查 RHEL/CentOS 7.x 的情况
-    if [ "$OS_FAMILY" = "redhat" ] && [[ "${VERSION_ID%%.*}" -eq 7 ]]; then
-        print_separator
-        print_error "Node.js LTS (v20) 不支持 RHEL/CentOS 7.x"
-        print_info "请考虑使用其他方式安装 Node.js，或升级系统版本"
-        print_separator
-        return 1
-    fi
-
-    # 检查是否已经安装 Node.js
-    if command -v node >/dev/null 2>&1; then
-        INSTALLED_NODE_VERSION=$(node -v)
-        print_info "Node.js 已安装，版本为 ${INSTALLED_NODE_VERSION}。跳过安装。"
-    else
-        # 安装 Node.js
-        print_info "正在安装 Node.js..."
-        case $OS_FAMILY in
-            debian)
-                # 添加 NodeSource 仓库
-                curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
-                install_package "nodejs"
-                ;;
-            redhat)
-                # 添加 NodeSource 仓库
-                curl -fsSL https://rpm.nodesource.com/setup_lts.x | sudo bash -
-                install_package "nodejs"
-                ;;
-            *)
-                print_error "不支持的操作系统族: $OS_FAMILY"
-                return 1
-                ;;
-        esac
-        print_success "Node.js 安装完成。"
-    fi
-
-    # 检查是否已经安装 Yarn
-    if command -v yarn >/dev/null 2>&1; then
-        INSTALLED_YARN_VERSION=$(yarn -v)
-        print_info "Yarn 已安装，版本为 ${INSTALLED_YARN_VERSION}。跳过安装。"
-    else
-        # 安装 Yarn
-        print_info "正在安装 Yarn..."
-        case $OS_FAMILY in
-            debian)
-                curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | sudo apt-key add -
-                echo "deb https://dl.yarnpkg.com/debian/ stable main" | sudo tee /etc/apt/sources.list.d/yarn.list
-                sudo apt-get update
-                install_package "yarn"
-                ;;
-            redhat)
-                curl -sL https://dl.yarnpkg.com/rpm/yarn.repo | sudo tee /etc/yum.repos.d/yarn.repo
-                install_package "yarn"
-                ;;
-            *)
-                print_error "不支持操作系统家族: $OS_FAMILY"
-                return 1
-                ;;
-        esac
-        print_success "Yarn 安装完成。"
-    fi
-
-    print_separator
-    print_success "Node.js 和 Yarn 安装完成！"
-    print_info "Node.js 版本: $(node -v)"
-    print_info "Yarn 版本: $(yarn -v)"
-    print_separator
-}
-
+# 11) 安装 VNC 服务器
 install_vnc_server() {
     # 检查操作系统类型
     if [ "$OS_FAMILY" = "redhat" ]; then
@@ -791,6 +964,7 @@ EOF
     print_separator
 }
 
+# 12) 安装 Chrome 浏览器
 install_chrome() {
     # 检查操作系统类型
     if [ "$OS_FAMILY" = "redhat" ]; then
@@ -835,6 +1009,7 @@ install_chrome() {
     fi
 }
 
+# 13) 禁用并移除 Snapd
 disable_and_remove_snapd() {
     # 检查是否为 Ubuntu
     if [ "$OS_NAME" != "ubuntu" ]; then
@@ -877,6 +1052,7 @@ disable_and_remove_snapd() {
     print_separator
 }
 
+# 14) 禁止系统自动更新
 disable_automatic_updates() {
     # 检查是否为 Ubuntu
     if [ "$OS_NAME" != "ubuntu" ]; then
@@ -907,6 +1083,7 @@ disable_automatic_updates() {
     print_separator
 }
 
+# 15) 禁止系统更新内核
 disable_kernel_package_installation() {
     # 检查是否为 Ubuntu
     if [ "$OS_NAME" != "ubuntu" ]; then
@@ -932,153 +1109,7 @@ EOF
     print_separator
 }
 
-# Docker 安装函数
-install_docker() {
-    print_info "开始安装 Docker..."
-
-    # 检查是否已安装
-    if command -v docker &> /dev/null; then
-        print_separator
-        print_success "Docker 已安装！"
-        print_info "版本信息：$(docker --version)"
-        print_separator
-        return 0
-    fi
-
-    # 安装必要的依赖
-    case $OS_FAMILY in
-        debian)
-            # 安装依赖包
-            local deps=(
-                "apt-transport-https"
-                "ca-certificates"
-                "curl"
-                "gnupg"
-                "lsb-release"
-                "software-properties-common"
-            )
-            
-            for dep in "${deps[@]}"; do
-                install_package "$dep"
-            done
-
-            # 添加 Docker 的官方 GPG 密钥
-            curl -fsSL https://download.docker.com/linux/$OS_NAME/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-
-            # 添加 Docker 仓库
-            echo \
-                "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/$OS_NAME \
-                $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-            # 安装 Docker
-            sudo apt-get update
-            install_package "docker-ce"
-            install_package "docker-ce-cli"
-            install_package "containerd.io"
-            ;;
-
-        redhat)
-            # 检查并安装 yum-utils
-            if ! command -v yum-config-manager &> /dev/null; then
-                print_info "正在安装必要的依赖包 yum-utils..."
-                install_package "yum-utils" || return 1
-            fi
-
-            # 添加 Docker 仓库
-            if [ "$OS_NAME" = "centos" ]; then
-                sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-            else
-                # 对于 Rocky Linux 和 AlmaLinux，使用 CentOS 的仓库
-                sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-                # 替换仓库 URL 中的 centos 为实际的系统
-                sudo sed -i 's/centos/rhel/g' /etc/yum.repos.d/docker-ce.repo
-            fi
-
-            # 安装 Docker
-            install_package "docker-ce"
-            install_package "docker-ce-cli"
-            install_package "containerd.io"
-            ;;
-    esac
-
-    # 启动 Docker 服务
-    service_manager start docker
-    service_manager enable docker
-
-    # 创建 docker 组并添加当前用户
-    sudo groupadd docker 2>/dev/null || true
-    sudo usermod -aG docker $USER
-
-    # 配置 Docker 镜像加速（可选，基于用户选择）
-    read -p "是否配置 Docker 镜像加速？(y/n): " setup_mirror
-    if [[ "$setup_mirror" =~ ^[Yy]$ ]]; then
-        sudo mkdir -p /etc/docker
-        sudo tee /etc/docker/daemon.json > /dev/null <<EOF
-{
-    "registry-mirrors": [
-        "https://mirror.ccs.tencentyun.com",
-        "https://hub-mirror.c.163.com",
-        "https://mirror.baidubce.com"
-    ]
-}
-EOF
-        service_manager restart docker
-    fi
-
-    print_separator
-    print_success "Docker 安装完成！"
-    print_info "版本信息：$(docker --version)"
-    print_info "服务状态：$(service_manager status docker)"
-    print_info "请注销并重新登录以用 docker 组更改"
-    print_separator
-
-    # 安装 Docker Compose（可选）
-    read -p "是否安装 Docker Compose？(y/n): " install_compose
-    if [[ "$install_compose" =~ ^[Yy]$ ]]; then
-        install_docker_compose
-    fi
-}
-
-# Docker Compose 安装函数
-install_docker_compose() {
-    print_info "开始安装 Docker Compose..."
-
-    # 检查是否已安装
-    if command -v docker-compose &> /dev/null; then
-        print_success "Docker Compose 已安装！"
-        print_info "版本信息：$(docker-compose --version)"
-        return 0
-    fi
-
-    # 获取最新版本号
-    local latest_version=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-    
-    # 下载并安装 Docker Compose
-    sudo curl -L "https://github.com/docker/compose/releases/download/${latest_version}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    sudo chmod +x /usr/local/bin/docker-compose
-
-    # 创建软链接
-    sudo ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
-
-    print_separator
-    print_success "Docker Compose 安装完成！"
-    print_info "版本信息：$(docker-compose --version)"
-    print_separator
-}
-
-install_chsrc() {
-    echo "正在安装 chsrc..."
-    curl -sSL https://chsrc.run/posix | sudo bash
-    if command -v chsrc >/dev/null 2>&1; then
-        print_separator
-        print_success "chsrc 安装成功！"
-        print_separator
-    else
-        print_error "chsrc 安装失败，请检查网络连接"
-        return 1
-    fi
-}
-
+# 16) 禁用/启用IPv6
 toggle_ipv6() {
     print_info "当前 IPv6 状态检测中..."
     
@@ -1137,6 +1168,7 @@ toggle_ipv6() {
     fi
 }
 
+# 17) 重新生成主机的machine-id
 setup_machine_id() {
     # 检查是否使用 systemd
     if ! command -v systemd-machine-id-setup &> /dev/null; then
@@ -1185,6 +1217,7 @@ setup_machine_id() {
     fi
 }
 
+# 18) 安装Miniconda 3
 install_conda_systemwide() {
     # 检查系统架构
     ARCH=$(uname -m)
@@ -1261,6 +1294,7 @@ install_conda_systemwide() {
     print_separator
 }
 
+# 19) 安装1panel面板
 install_1panel() {
     print_info "开始安装 1Panel..."
     
@@ -1301,6 +1335,7 @@ install_1panel() {
     return 0
 }
 
+# 20) 禁用systemd-resolved
 disable_systemd_resolved() {
     # 检查 Ubuntu 版本
     UBUNTU_VERSION=$(lsb_release -rs)
@@ -1399,6 +1434,7 @@ disable_systemd_resolved() {
     print_separator
 }
 
+# 21) 清理 Docker 资源
 cleanup_docker() {
     echo "Docker 清理选项:"
     echo "1) 停止的容器"
@@ -1421,22 +1457,7 @@ cleanup_docker() {
     print_separator
 }
 
-function install_package() {
-    local package_name=$1
-    local apt_name=${2:-$package_name}  # 如果没有指定apt包名，使用第一个参数
-    local yum_name=${3:-$package_name}  # 如果没有指定yum包名，使用第一个参数
-
-    if command -v apt-get &> /dev/null; then
-        sudo apt-get update
-        sudo apt-get install -y "$apt_name"
-    elif command -v yum &> /dev/null; then
-        sudo yum install -y "$yum_name"
-    else
-        echo "不支持的包管理器，请手动安装 $package_name。"
-        return 1
-    fi
-}
-
+# 22) 配置常用别名和函数
 configure_aliases_and_functions() {
     # 定义别名和函数文件的路径
     local ALIASES_FILE="$HOME/.bash_aliases_custom"
