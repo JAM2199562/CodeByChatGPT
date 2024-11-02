@@ -276,15 +276,13 @@ install_common_software() {
         ["sysstat"]="sysstat"
     )
 
-    local failed_packages=()
-    
     # EPEL 仓库（仅用于 RedHat 系列）
     if [ "$OS_FAMILY" = "redhat" ]; then
         print_info "正在安装 EPEL 仓库..."
         if [ "$PACKAGE_MANAGER" = "dnf" ]; then
-            sudo dnf install -y epel-release >/dev/null 2>&1
+            sudo dnf install -y epel-release
         else
-            sudo yum install -y epel-release >/dev/null 2>&1
+            sudo yum install -y epel-release
         fi
     fi
 
@@ -298,31 +296,23 @@ install_common_software() {
         common_packages+=("gcc" "gcc-c++" "make" "bind-utils" "gmp-devel" "sysstat")
     fi
 
-    # 批量安装软件包
-    for package in "${common_packages[@]}"; do
-        case $OS_FAMILY in
-            debian)
-                local install_name=${debian_packages[$package]:-$package}
-                ;;
-            redhat)
-                local install_name=${redhat_packages[$package]:-$package}
-                ;;
-        esac
-
-        if ! install_package "$package" "$install_name" "$install_name" >/dev/null 2>&1; then
-            failed_packages+=("$package")
-        fi
-    done
+    # 一次性安装所有软件包
+    case $OS_FAMILY in
+        debian)
+            sudo apt-get update
+            sudo apt-get install -y "${common_packages[@]}"
+            ;;
+        redhat)
+            if [ "$PACKAGE_MANAGER" = "dnf" ]; then
+                sudo dnf install -y "${common_packages[@]}"
+            else
+                sudo yum install -y "${common_packages[@]}"
+            fi
+            ;;
+    esac
 
     print_separator
-    if [ ${#failed_packages[@]} -eq 0 ]; then
-        print_success "所有软件包安装成功！"
-    else
-        print_error "以下软件包安装失败："
-        for package in "${failed_packages[@]}"; do
-            echo "  - $package"
-        done
-    fi
+    print_success "所有软件包安装完成！"
     print_separator
 }
 
