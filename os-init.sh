@@ -1450,7 +1450,7 @@ cleanup_docker() {
 # 22) 配置常用别名和函数
 configure_aliases_and_functions() {
     # 定义别名和函数文件的路径
-    local ALIASES_FILE="$HOME/.bash_aliases_custom"
+    local ALIASES_FILE="$HOME/.bash_custom"
     local TEMP_FILE=$(mktemp)
     
     # 创建临时文件
@@ -1668,6 +1668,15 @@ EOF
         print_info "配置文件已创建：$ALIASES_FILE"
         print_info "并已在 ${TARGET_RC_FILE} 中添加引用"
         print_info "请运行 'source ${TARGET_RC_FILE}' 或重新登录以使更改生效"
+        print_separator
+    fi
+
+    # 在函数结束前添加自动 source 命令
+    if [ -f "$ALIASES_FILE" ]; then
+        print_separator
+        print_info "正在加载新的配置..."
+        source "$TARGET_RC_FILE"
+        print_success "新的配置已生效！"
         print_separator
     fi
 }
