@@ -1455,7 +1455,28 @@ configure_aliases_and_functions() {
     
     # 创建临时文件
     cat > "$TEMP_FILE" <<'EOF'
-# 包安装函
+# 目录操作别名
+alias md='mkdir -p'
+
+# 网络测试别名
+alias pb='ping www.baidu.com'
+alias pd='ping 10.130.32.31'
+alias dnsb='nslookup bing.com'
+
+# 网络端口查看别名
+alias ntl='netstat -tlnp'
+alias nul='netstat -ulnp'
+alias ntul='netstat -tulnp'
+
+# Docker操作别名
+alias dkps='docker ps'
+alias dkpsa='docker ps -a'
+alias dkk='docker kill'
+alias dkrm='docker rm -f'
+alias dks='docker stop'
+alias dkr='docker run -itd'
+
+# 包安装函数
 function install_package() {
     local package_name=$1
     local apt_name=${2:-$package_name}  # 如果没有指定apt包名，使用第一个参数
